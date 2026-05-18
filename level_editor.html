@@ -1,0 +1,1117 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Slope Slider — Level Editor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #1a1f2e;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #E8F0FC;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #2a3142;
+    border-bottom: 1px solid #1a0d05;
+    flex-shrink: 0;
+  }
+  .topbar input[type=text] {
+    flex: 1;
+    background: #1a1f2e;
+    border: 1px solid #455168;
+    color: #E8F0FC;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .topbar button, .palette button, .actions button {
+    background: #455168;
+    border: 1px solid #1a0d05;
+    color: #E8F0FC;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 36px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .topbar button:active, .palette button:active, .actions button:active {
+    background: #5b6783;
+  }
+  .topbar button.primary { background: #2e7d4f; }
+  .topbar button.danger { background: #7d2e2e; }
+
+  .canvas-wrap {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: #f5f9fc;
+  }
+  canvas#editor {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  .scroll-indicator {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    bottom: 6px;
+    width: 4px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .scroll-indicator-thumb {
+    position: absolute;
+    right: 0;
+    width: 4px;
+    background: #2a3142;
+    border-radius: 2px;
+  }
+  .hud-overlay {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(42, 49, 66, 0.85);
+    color: #E8F0FC;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+    line-height: 1.4;
+  }
+
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px;
+    background: #2a3142;
+    border-top: 1px solid #1a0d05;
+    flex-shrink: 0;
+  }
+  .palette button {
+    padding: 8px 4px;
+    font-size: 11px;
+    background: #455168;
+    flex-direction: column;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+  }
+  .palette button.active {
+    background: #2e7d4f;
+    box-shadow: 0 0 0 2px #5fc587;
+  }
+  .palette button.delete-mode.active {
+    background: #7d2e2e;
+    box-shadow: 0 0 0 2px #d65555;
+  }
+  .palette .icon { font-size: 18px; line-height: 1; }
+  .palette .label { font-size: 10px; opacity: 0.9; }
+
+  /* Variant strip — appears under the palette when a kind with variants is
+     selected (tree, snowman, ice). Hidden when there are no variants. */
+  .variant-strip {
+    display: none;
+    flex-direction: row;
+    gap: 6px;
+    padding: 6px 8px;
+    background: #1f2533;
+    border-top: 1px solid #1a0d05;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .variant-strip.show { display: flex; }
+  .variant-strip .variant-chip {
+    background: #455168;
+    border: 1px solid #1a0d05;
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 56px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .variant-chip canvas { display: block; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+  .variant-chip.active {
+    background: #2e7d4f;
+    box-shadow: 0 0 0 2px #5fc587;
+  }
+
+  .actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    background: #2a3142;
+    border-top: 1px solid #1a0d05;
+    flex-shrink: 0;
+  }
+  .actions button { flex: 1; }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .modal {
+    background: #2a3142;
+    border: 1px solid #1a0d05;
+    border-radius: 10px;
+    padding: 16px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 16px; }
+  .modal label { font-size: 12px; opacity: 0.8; display: block; margin-bottom: 4px; }
+  .modal input, .modal textarea {
+    width: 100%;
+    background: #1a1f2e;
+    border: 1px solid #455168;
+    color: #E8F0FC;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: monospace;
+  }
+  .modal textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+  .modal .row {
+    display: flex; gap: 8px;
+  }
+  .modal .row button { flex: 1; }
+  .modal-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1a1f2e;
+    border: 1px solid #455168;
+    border-radius: 6px;
+  }
+  .modal-list-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a3142;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .modal-list-item:last-child { border-bottom: none; }
+  .modal-list-item .name { flex: 1; font-size: 13px; }
+  .modal-list-item .meta { font-size: 11px; opacity: 0.6; }
+  .modal-list-item button {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-height: 0;
+    background: #455168;
+    border: 1px solid #1a0d05;
+    color: #E8F0FC;
+    border-radius: 4px;
+  }
+  .modal-list-item button.delete { background: #7d2e2e; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <input type="text" id="levelName" placeholder="Level name" value="My Level">
+    <button id="btnSave">Save</button>
+    <button id="btnExport" class="primary">Export</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="editor"></canvas>
+    <div class="scroll-indicator"><div class="scroll-indicator-thumb" id="scrollThumb"></div></div>
+    <div class="hud-overlay" id="hudInfo">y: 0 / 4000</div>
+  </div>
+
+  <div class="palette" id="palette">
+    <button data-kind="tree"><span class="icon">🌲</span><span class="label">Tree</span></button>
+    <button data-kind="log"><span class="icon">🪵</span><span class="label">Log</span></button>
+    <button data-kind="ice"><span class="icon">🧊</span><span class="label">Ice</span></button>
+    <button data-kind="snowman"><span class="icon">☃️</span><span class="label">Snowman</span></button>
+    <button data-kind="jump"><span class="icon">↗️</span><span class="label">Ramp</span></button>
+    <button data-kind="cliff"><span class="icon">⬇️</span><span class="label">Cliff</span></button>
+    <button data-kind="powder"><span class="icon">❄️</span><span class="label">Powder</span></button>
+    <button data-kind="avalanche_trigger"><span class="icon">⚠️</span><span class="label">Avalanche</span></button>
+  </div>
+
+  <div class="variant-strip" id="variantStrip">
+    <!-- Filled in by JS when a kind with variants is selected -->
+  </div>
+
+  <div class="actions">
+    <button id="btnDelete" class="delete-mode">Delete mode</button>
+    <button id="btnLength">Length</button>
+    <button id="btnLoad">Load</button>
+    <button id="btnNew" class="danger">New</button>
+  </div>
+
+  <script>
+  (function(){
+    // ============ ASSETS ============
+    const ASSETS_SRC = {
+    tree0: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAA5CAYAAAC4YUKZAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFgUlEQVRYhcWYT2gcVRjAf9tss2E3bnZT2l3K0CEH00NcRCqtlxyaS0FjDzkWqa0BIzkUKkKrdbGS1sZTQaFYIVRECnroIamiIEathwaJIEMPbsB0wlA227rZXbKlG9uOh82bvPm3f2a1frDMzJvvfd/vfd/73nuz0KGkD2F2aqNjgG9/yZqdgoQ6Afgsm7Wej01Nkf8umL1tQQGmT5yztU2fOBc4NYEghOTLEds1qLQdvvQhzOzRaQBiiYdWe7UUBmDq89Ntp6WtSDjTIByLKwRLS7i5iltEBKqlsAUgR6VdaTlsohpayX+6r9ZWtbSUDjkN6b6azZn4yW3QXlramhMiCtVS2OZYOBepabdamkLI1SA7cDryas8enW4pGg0h0ocwJ8Ymga1JuGzcaeh42bhjm7ATY5NNQfwhlDrArt49ABTWVyisr7BkaBTWV1yhr5bCtveF9RUAdvXuYWJsEhR/kMazV8F8L1uPxJKhYawu15tTAzytZCxAAemlA/D+1CUw/H01LyEF88jxYYzVZQ7uOwzA/OKszYkM6dS5euVGQ4CmEKI0xTwYUHZbYRdOhAiAXb17iCUe2vqc/ujdhmuG7wtRFc79QeR6QNnt6iMcCxC5X6M9pWmJyvuCEC8Av3av/i1BOHdKueQaGXbqVEthKyKN1gwXhLw2yIblsvMCkZ9lXbndb82wW1IwR/YPW4acsmRotorwi4jQ87Ixsn+Yq7dumHLF2K0YhK5euWEeOY6r/ABrDUCpX5zrhNC19HDb8SpZ91AkEKtpdZmcbriHrGzdyqA53SCnGwyqik3db81wQyiY6SFso8npBhNjk8wvzvo6kEEHVYWD+w5z+dolm056CPJgNo1Eeqg+k6F+XoT6swj3yP5hz8gIMCU1YA0ge3TaZkPYzDuCaiMSlSHnGuz5FuK3d8jvAU9bl69dsi1c1o0MIO+AXiBOACeIF4Bs0wlSh9jcpJwjcJZYIwA/ECGyPVFBP39jgEGoS0zE7eHHxHuTFCsFipUCPT09LgCAHfEU1Y0yse4+TwDAsrEjnrLeVTfKLBkaxUoBgEq1RK27wnqNs2EMQnkwwaMEJZG3aeHQK9xQj+b84qynDSE53SB/CzAIbU3MzYgArvKTxXmOcIpzsXKKqCoBAHKJGoTyBpvHsK2oyEA53UBJDVip8VpVhZ6znxDZuRD/Q40UGVmEcflAY41jMwJeq6uX8+YQEgzUFzEvGFmczvO3BF0HxzsniBCvCLkcC2kC0DqEB0hL0gIAtPMZ6GNwJL6T0bQaGACC/me1GZWR+E4SyX4ASmtFfqjcbcu5kMB/F42pe0kk+0klYgBEo9GgpoJDlNaKAKyWqqQSMbojPah3nyCEendr5NHwY9v1iUEISca6O+n+70AARCI9RKNR/u6K/X8QAKVyuaP+HUMk+tzniv8cQo1g7nt+r/XcaRQCQQBs1B7QHamfvORIZDIqaqT95T1wOjZqD4J27QxCjWBmMiqxeBJN06nVHhCNRvn+J43tj6qBIbpa0BkFBtUIfwiAamWNVCrBr7/9yePQQwqFMn3JpwBIpRLU/iqfLT9iERgEcs0cOL/ARlshPz8zzwcnxwCd54b2omk6gAXYgs3r8sM2SdETQI0wp0aYk6Nw79593rl4zdLJZFTOz8xTrawRiyfFBJ1rMI5R6UfIz7kAyGTsZ4WTH35NsbiV/x+/fBP9tkEsnuT1M18AcPHUSwBomo5e4+UGMAgIQeYLAnDm43mSSft2/dYrB8hkVDRNt73v74/x2ovPtAQAXHceQHxhxscvzB048IKrffbTY9b9q6e+AmBt7T4ACws3mZl52w/Emhd+pyBPmPHxC7Y8r/7+Caln30CGW1i4ad17AFzHQ/4BgF/pppNqpa0AAAAASUVORK5CYII=",
+    tree1: "data:image/png;base64,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",
+    tree2: "data:image/png;base64,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",
+    tree3: "data:image/png;base64,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",
+    log: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAB+UlEQVRYhbWXTU7CQBiGXwmhpGYsELHBuJANG6Un4hSsPIIrT+FB3HiBohtcaQwNgSBlQtMhRF3gNAPWyXxj+yYkZf6+p99fM0cg6KKKL938+xbXAJ4pZx5RjPd6bbiuCwCoOfVsbiNSJEmC8XhGhjACUI03jmtwfowLkWbP08XKCqJqSiqN/yW/dYKp6WGKKtQN/pmfOy5EuheWwgHyDvfPfHysN2SjVgAAkGwr8DzvXwatATYi3fsvRIplHGvXFAogFStGp4tV9uxYxN8K4PCtgZ03GpahIQPolCQJeY9xH6gpzSfZVuAa79TL2gMy5m71E0B+aAoFyMtwv3UCYFeetiLtbGpasVoRpQEAu7eV3pCZrwMrDCCvFatdUfehKgTARI1mq1wA8eN6mXxxHFt3QCuAQ8nSs01AEoBahg3Py7zx15rCAWSbVTN+uljtvgPHNSzXm3JbMQA8PL5o53u9dnkA4/EMN8MBGGO585xz3N7dkwGMQyCNh+EIs/l87xeGIzDGcDMckAGMPSCNd7uXv7xQdxyE4QhB0CcDkMqwc97JjL++vWE2n2dwnfMO2TgZQJXrulZZfyhSFUSTCHXHAWMM7dPTbJxzjmgS7Y0VDsA5RxD0EYajX+6OJhGCoA/OORnA9HJ6dVHFk0kZlnI5VSF0C2yu59/359At2UO/uwAAAABJRU5ErkJggg==",
+    ramp: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAs0lEQVR4nO2UvQ2EMAyFXxDSBTq2uRmY5jZAbHDTZAWS9magd5UfqlxxJ0gBkRBIafwkNy78ni35E9aGSBRRQl0nIKwNh+5t+8gOcG65HKLKbb9n4Nyy1lURRdRKafT9E1JKNM029Gj7tJ+G8D5/rVQhBACAUho1AEzT51z0G1UZo4uZG/O/AJErFkLMs4/D8C5iPo6v3xsyB84YMAfuFnOAOcAcYA4wB5gDzAHmAHOgOAe+X2n4YVyzc0MAAAAASUVORK5CYII=",
+    cliff: "data:image/png;base64,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",
+    powder: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAECklEQVR4nOVbPW/jMAxlDwcYDpCtS85LBm8dgm7+/5O3Ap0FXG5ocgUyFAganae7oaBPtvVBSpSdpg8Img/bz6Ip6pFi797f//yFmdG2qn/fNPXk85y44xpAqQPU9Q+xG2hbxRq0ND/ZANLEXOTij/KA0+kyu6tK8a9WBVwuXf/5G+dEAPCSK/Vk/V7rgnOPVmCcSOHHMeBfAKIBzBPH5FoXTmJEWXbe3ylA3hT+y6XrXwj2FLBB6wJeXlqoqkZksCGM3TiFf+ABqa6aOngKv82NQ/zmMjv+/jvlAiGUZQd1/Rh1LpfffPIS/M4Y4LIa9XcXbE/OBonAiUCxhfeM75umHnpAbpjua3uSJqRjyW73AGXZTYSXdxXwzZ0Y2KIwBRLeiAYdryJOA+CBNtexXcgGpQ7BY3KCwu9dBk35GdLsWhe9laVkK17HZ3T8DV2cy0/SAbHyc388w+9fr8myGfkR1AySct+kGGC7iC9K43nUwYdiDfLjq20V7HYP/WfOfY8hogRdoKa63JRYCloX9GToFlGWXdgAsYJE6wLu78+kJSwUXGP5Q0kSQOYpgEnK6bTuv5uzBIb8Ppk8ixJsmhqUeoK6flxsvrvU58ADKBbjgpOq5uAHGOYfYyM4YwBl/vw/1q24MFPjanspfgC/BJ/EAMoTQ9WXo1A5N78zCFIyNkSMUpQ0Xgz//niG7WZtnwK+qosJquIylzJ0V4nB+/hdy+/+eAaAD5UKkHkZ9CF3eT202qCBZleCHJ0OkFYZsnnBOKVfzANsMFNqCVD2IHsDUFxmqd0gCbju/8skQ66HNzCAdA3wM2AQA65p334uOIOga87c2jZ5tv4AjpLMwU9Flv4AX/aVCmkBRV4FKAIGZWbsBkgqf0x/AtkAKfvzKUBvkugPsEGsP+D17QTbzTp8MAPUqXQV/QGYXblA0RJjfu5UipHRAwOk9AdIYIn+BGcMiPGGz6gkRbNBn5I0Ny+XgCvTzJYOx2SPS2ylkZbBmH3+j70Amf4A1BdcUPi9BuDU73LU/XDglOU1lj9rf0DMeTb3NvsMqO6/WhXw/PwzyO81AJLZSH3lK995FFDSch8/JxdZtCZIqQHmLMVpXVxXUXQJsPsDOI2OEklSijynrB5BA5guSt0xwvOqqkk2AlU82dTmdrPujeBSo6yqcEqenzNlTsEkG5S8UdMLqqoJHp/K7/ICXy5yM/0BsZ2twf4A3zIk1Qjp43cdE+oPoC6fEw/gPDGUqEod2Ckves04oFL48TccvI0/NHjkJwVBaienCy6dzllVcvADEJVgjh2jHNOHA8xTgm1yWg//UyxVmuL51MHn2DJvmrr3mkmb3JJVmyUgUhTlINf/IsXiy/QHuLCIAa6pevwP2ZsAAEZrMdUAAAAASUVORK5CYII=",
+    powder_mounds: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACaElEQVR4nO2bwW6DMAyGnWnSpvU1euwDcOe5ufMAPfY1QO3JO0xhISWJCQ6xaT+pUkUHhD+2YzvMQAW67or2e9Ocoe9v029tezE1xlQNV4w3b8qDiDOL+8g9URvDcEf7DIiIw3BHAIBPyok/P19gTxzHB5xO3yoD1Tg+no5FH8SqtERNERARjTHk+8eeg+wCEgiZcQp3mfWPBwVIXZx6cy7s/cbxMX04xhEUIKQa9fcQNYJp215M39+mMdvvbXsxySDIgZ0lP5gC0GIJxRpT17EZZtdd0c02ozEg5jtU3MH75uv/vnYcOePxU+2gAPYPl0xn6UJaibqA+5C+6exN39+gac6Lx7dQ9IHWROiUD6usILvuisNwT37WVoScFaSqRMjCOeMqBVBFyg1qN0R2CR4qA1gpas249n5GNraCtPhL86HNj9LPePlVICiAdp+h9jOeBMjtukiDWkHOiiG36+If19oITXHoGEDpZ0yzSjF1bVawKgGTnrJuJTT+Q7uASyjlngnA0QPUxkyVd9HioN3nq6Mlk2QPgtoySVa/lrqbHEP8MljaldhmhTOT9PcSAf7rE25LYrMArv07jr3ENYh3gdKwCqAxk2T1p62ZJOdeYnVyMslSe4kxisUALbXDywdBcXA1ZqgJlEgz3RJM3TdbAf5yCfEBM8aagBeznNA5epVZIKcYWx0Epdb5uW+2kgWQXufn1iKkN0WPvGN0qDwgpxZhyc+lWEGRrrbWHSPquKq7QKlVhTrjJAFK1PlSVhWSSty+pbF7PMHh8zkpayl2V1vaqrJ7ECz1v0i5VF8FalNFAEnd41+RfzSTXb+/YQAAAABJRU5ErkJggg==",
+    avalanche: "data:image/png;base64,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",
+    snowman0: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE70lEQVRoge2YMWgbVxjH/0ok8WzRoTqlYJQMicGQDHaoYvDgRTIpt3gxFIEhSYM8FpFgIezJ0VI1QqZBZHRonSGgxR2yGAtFULqpii0PNpjQDiGY1qfrUjsXQrgO8ne8u3t3enKyRX8w53v37n2/73vvfe87AQMNNNBAAw30uSvQ7wuZTNH0e/7kyXJfYwb7NVwo3LO1dzqHzq5mPyBSnTKZovnw4ZKr3TAMT5hKpSoFcf6sxgEgGAza/sLhIbx9+x8AYHT0CkKhSw+2t+uFMwP4GfcCCoeHMDz8BQKBd1IQ56RHlxRjDIwxKMqIVH9PgH695xWLBU6vw1DVlO/O+eQRiMUCME0TFy8OAQCi0Yhv/74ByDuSYRh4ef8GXt6/Ye2KQEA+FfgCOLcZeUcQhmFgb3kaY1MRjE1FsLc8ja1bCQBAu/3nxwOIJPLu6FU3zF/GvsLYVARbtxL4u/wtNO0Eun786QA0zbRdRRBHryIWyIdf7vQc0zcVdzqHUJQRMMZcEEB3y10r/o695WnXu/9qwPnv1oEeEfAF0LQTAG4IXowxfP3TH7Y2wzDQ6Ryevu8vz0y4vV0vhEKXHoyOXkEg8A7h8BCCwd5nFy3c16//ga4fY3Pzhe+Z4Dvi7vsNqHrq9O5QKrsJTkdf+W7YyduT5nhoDqqashJKLDbsOyCFnbzffb8BAGg+bQpteUZg8vakmcvnUC6VgU1AVVNeXW2ibbe5+cJqm7g+AQCmCKLnpCZnkmjUN7D7fAMUDT+RYfI8l8+h1Wp59hcCZDJFkwagQWpbNbR3uiCk8dCc6935+Vksrd8lr1EulZHL59CoN4QArpBkMkWzULiHTucQC6tpJGeSSCQSqG3VEFWiSCS6qbbVankOCnQjR2rUG8jPPhbuCM8pUJQRrC1WsbCaRqPesDziNXF9wgWld3S0d9pWGwF4nYo2APKeh/j1h9+saNBgTg9ltLR+F/nZxwCKJh8FYQQYYzAMw8p+8fhlrC1WbX0IiIfiVS6Vbfe5fA6l0veudWORkPfOlEtptVKpgn9O7SItrKZtU9beaSOXz1lg46E5ay1IfRdUKlU4yzPGGOLxyxYMiaCiStTmfblURnImaW1rUk8AGpCfEqf4qJD4RciLazebT5uBc0A3/PPzs67OhmG4Qu8nrz6UiERQVkESiw1jZeWR7WG/B4vTKP3pHd3Wzt+7pkAUahnvSXRi8kaAbs7gd8Z4aA5NNN0lmfP7zvkxKquoEsXNb27argCwtljFj3d+tvpJ1YTO6lhGiUQCrVbLdiXxharvLshm09a6kF2IpNpWTXh1lmkuAE07QTze/V9RRpDNpnFwcISVlUdSEIwx6wxxam2xioODI38AXT+2FqJsYekUHWROicYKAtavGWY2m0alUsXY2AUoygg07QTPnj0H0D3nZaeAsiStHcYY3rz5y3rOH8vCNUDlOC0WVU31rAW9QPgxRV9JQgBdP+75SdWPeO89AWgaVDVlKyipIpb9wcHLOF+s9qwH+MIzGo1Y4fc7kJzic4ffQnbWhFczmeIeAfDGSbKRoIzKz/2p99cA7DsBrvIv8xBeIDLyMM5rP+A07gXBw8iIX8QexgF0IyAEIAhA/qvIKVrMXsZ7AjhBZGD4HeRnmAeADIQIRiQZo5z2RV+s0jBn1D5/089P62cB2+/d5XPX/7yxX0yIyowHAAAAAElFTkSuQmCC",
+    snowman1: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFKUlEQVRoge2XTWgbRxiGn82PWVmNRSzRRnFKaU2VOJQc8qtDTzn5kFASCP6ByJQFF1osmkPB6SGWe4ic+hJscrBpDvFBcUmwoQ1UDdinHpIUbAxtXOKQXBzLUFkg/0hOMWwPyUxmV7vadS7tQS8M0s7O7PvON+98+y3UUEMNNdRQQw01/MfQ3mZSoCNhOvWXb49t+3m73oa4PdHleH8czO0K8S0g0JEwBfH42C3HMfI+mH5F+BIgyAXxwuAIACsrOcu4+EBKCtmOCE/yz3+ZMg0jbebzpmtbXCybc3PPzKmpP0wxx80rKnZ4DWhPdLHj7iOuXeutOk7XdcLhKABj579ifOwW7YkuV8P6EuBnBXYRkUj9dqZUFyBW39p6mkjE33aGw1EaG4O+o+BqQnXShQunME0TTdPI572Dsp0oeHpAQNPeRGDm0nFmLh1nc3PTRrx90/sScOfOQwDuXzzGzKXjxOJBYvEgjy9/KkVEIhqmaXLgQACAMz98T3uii9ihlqrb4LoF5dtj2jiYnfUthH76kvsXjxGLB/n7aRDYkL8qRJTy+RIAsUMtLOeWiB1qebsIlG+PaW3/3CUWD7I38u5rUuSvCuGNublnsm85t8S+6H6e/DXvyuFr0+5fPOYYvsPp39B1XV6/ePGcfL5EobBBNjtNpvSG2C0reqbiQEfC/GzrVXJpbHy1cuFyeyoWoQfIlOZ9vZQ8E9GVqwMAZLPTFAobFAob5PMlxybuJyZucObceV+JzPMULOeWuHJ1gExpnsTEDYsQe8tmpyX50RMnvR4N+NiC1WKR0eEhzpw7D0BmcgKy1jHqXnf3JFlaXGQ5twSAYaTNmzcvu26FqwDDSJvJZBvxgVRFAaISqqRHT5xkObfE0RMn+e7bXh70psQQVxG+6gFxnvdF90vCfdH9sk+sVlwL8nA4WmFUXwLU1asPFkSrxSKA7FstFrk3OSHnC3Lxik4m21yj4BqB+ECK7p4ko8NDjA4PWe45lWSiSgIsuUHXdcvx9BRgGGkzU5qXpgMs/+9NTqh7CyBXu7m5aSEXOHiw2TUKFQIypXlputHhIbp7ko7KRfUDSPK+vuskk21SkAq3KFjyQKAjYXb3JGkIhWgIhQCk8cSvCl3XJZGu6/T3f83Q0I+uxuvsPIthpC3JqSIR2Qmf/DUvXyjCfG5QRai1gq7rZDI/O86pEGB3/PraGjO/P2J9bY31tbWqAlQ4RaFQ2Kjos3igs77F4njVfHY4mc0N9spJRUUEFgZHpMvf2bOnonlB3QaBasnIMQ8Ih6tGVDOhegLsUFfrdiyrClhZyUmC1WKRhlCowhfVyPv6rgOIcw+4H0FHAQILgyN8/M0XFf0PelOOqxLkra2nFdIcTU0fOprPVYCYGA5HWRgcsexftdDruk4y2WbZ+87Os8Bz1zkAO9WL2dmp/t273081N3+Epr2kvn6Ppem6zq5d7i/QuroAR458wKlTn/Dw4Z80NR3ANDUmJ3+ltfU02ew09lTsWBGJsktdvZ9jp36gqs+qhp32jtnZqf6GhuaUUK9pLymX16mrC7C1tSWbUyTECSiX19m79z2y2WmePn3uunrwKEis6q1n2ckPImL5fInGxqA0ZDW41WothpF+rD5AlOQCTh+g4rjZw/569YeBii8UuwDLN5RdhAq7ICdiG7kKKUQV4PgBZxjpx4CvcNqJASdyi4iqEXASUk2MIPUgluROAjyF2MWo8CC1EHsJ8C3GB9w/jX0KcIKbqKpkNfwv8S9WT6YRI+X2qQAAAABJRU5ErkJggg==",
+    snowman2: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE60lEQVRoge2YMWgbVxjH/5dI4tmiQ3VqwSgZEoMhGRRTJeDBiy0atHgsJoYkBXkWDjaHjQdHg6pG2DRodkqdIcZTBy9GRvHSzVUsa7DBhHYIwbS+uy61cyGU6yB/13d3705PbrboD+Z879697/d9773vfSegp5566qmnnj51Kd2+kM+X7bDnz54tdDVmpFvDxeKMq90wjr1d7W5ApDrl82X7yZN5X7tlWYEw1eqGFMTlixoHgEgk4vqLxfrw7t3fAIDBweuIRq8+3turFy8MEGY8CCgW60N//2dQlPdSEJekR5cUYwyMMajqgFT/QIBuveeVTCrn137kcuOhO+ejRyCZVGDbNq5c6QMAJBLx0P5dA5B3JMuy8OrRbbx6dNvZFYoinwpCAbzbjLwjCMuycLAwiqGROIZG4jhYGEXtfgYAsL//2/8HEEnk3cnrdpg/T36JoZE4avcz+GP5G+j6GUzz9OMB6LrtuoogTl7HHZB/fnrYcczQVGwYx1DVATDGfBBAe8vdLP+Cg4VR37t/6cDlb9eADhEIBdD1MwB+CF6MMXz1w6+uNsuyYBjH5++HKzAT7u3Vi9Ho1ceDg9ehKO8Ri/UhEul8dtHCffPmT5jmKba2XoaeCaEjfmi1YObGz++OpbKb4HQMVeiGfXDnnh1Np5HLjTsJJZnsDx2Qwk7ef2i1AADPd9eFtgIj8ODOPVub01BZrmALQM6JRLho221tvXTahm8NA4Atgug4qdmxLOo7dWy2WqBohIkMk+fanIZGoxHYXwiQz5dtGoAGqW3X0NxvYpNrj6bTvnenpiawNl8ir1FZrkCb01DfqQsBfCHJ58t2sTgDwzjGyvQismNZZDIZ1LZrUBMqMpl2qm00GoGDAu3Ikeo7dUxoM8IdETgFqjqA2dUSVqYXUd+pOx7xGr417IMyTAPN/abTRgBBp6ILgLznIb77+UcnGjSY10MZrc2XMKHNACjbfBSEEWCMwbIsJ/ulUtcwu1py9SEgHopXZbniutfmNFQqFd+6cUjIe2/KpbRarW6Af07tIq1ML7qmrLnfhDanOWDRdNpZC1LfBdXqBrzlGWMMqdQ1B4ZEUGpCdXu/XEF2LOtsa1JHABqQnxKv+KiQ+EXIi2u3n++uK5eAdvinpiZ8nS3L8oU+TEF9KBGJoJyCJJnsx9LSU9fDbg8Wr1H6M0zD1c7f+6ZAFGoZ70l0YvJGgHbO4HdGNJ0Gdtf9JZn3+877MSoNklBx9+u7risAzK6W8PD7/7awVE3orY5llMlk0Gg0XFcSX6iG7oJCYdJZF7ILkVTbrgmv3jLNB6DrZ0il2v+r6gAKhUkcHZ1gaempFARjzDlDvJpdLeHo6CQcwDRPnYUoW1h6RQeZV6KxIoDza4ZdKEyiWt3A0NAXUNUB6PoZXrzYBNA+52WngLIkrR3GGN6+/d15zh/LwjVA5TgtllxuvGMtGATCjyn6ShICmOZpx0+qbsR7HwhA05DLjbsKSqqIZX9wCDLOF6sd6wG+8Ewk4k74ww4kr/jcEbaQvTXhjXy+fEAAvHGSbCQoo/Jzf+79TQCHXoAb/Ms8RBCIjAKM8zpUvMaDIHgYGfGLOMA4gHYEhAAEAch/FXlFiznIeEcAL4gMDL+DwgzzAJCBEMGIJGOU06Hoi1Ua5oI65G+6+Wn9ImCHnbt86voXC6hfHTclvy0AAAAASUVORK5CYII=",
+    snowman3: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFGklEQVRoge1XT0gcVxz+plEZNXFxd2ldtZRW2GiUHNSqhx7E0x4igUBQXFTKgAcP20ouSaGaNeAmByHswYOQg4JiSTFYc5gKSg69bCmK4J8QJLmoK3QdWF1dU4XpoX3PNzPvzcx6aQ/7wUPn+d583+/3vt+bn0AeeeSRRx555JHHfwzpKpv6Gop13vz0Rjbn9xVchbg/3M1fMDOn5yrEtYC+hmKdEE/NzHHXUGEzc7pbEa4EEHJCPKZqAIDDw6Rh3Xi4/lJIDiIcyZdj3+qKEtNTKV04dnez+vr6e315eUMne0ReYfGJ04L+cDdmd4J49uyh7TpZluHzBQAAnSNvMDUzh/5wt9CwrgS4icAswu8vyWWLvQASfSjUAb/f3XH6fAF4vaWusyA0Ibvp/v1W6LoOSZKQSjknJZcsOHqAQJIuM7A61IzVoWacnZ2ZiHM3vSsBL18mAABLvU1YHWpGsK0UwbZSbD36horw+yXouo7q6mIAwNR3X6M/3I262qDtMQgFTG9kJVL3nl8GsdTbhGBbKcr9nwIA/twptewhWUqlTgEAdbVB7CcPUFcbFAZnm4HpjazU9dfPlJiQ8siJN9bX39O5/eQBKgMV2H77Tsjh6tCWepu46bsV+w2yLNPnvb0PSKVOoWknUNUVnCdGDcFcSQA5u86RN/B6/4lc5HKSek07wWK03dVHyfEievpkGACgqivQtBNo2glSqVPuIH9fjLbj3t07ri4yxyrYTx7g6ZNhnCdGsRhtNwgxD1VdoeQtzY1Orwbg4muYTh8hPjGJe3fvAADmF0ahmtawZx0ZHMDu3j72kwcAAEWJ6S9ePBIehVCAosT0SKQL4+F6SwPCErKkLc2N2E8eoKW5EQ9/HMWDmU2yRCjCVT9A6rkyUEEJKwMVdI5ES54Juc8XsPQMrgSw0bMvJkTp9BEA0Ll0+gjzC6/pfkJOPtGRSJcwC8IMjIfrERkcQHxiEvGJScPfeC0Z6ZIAGO4GWZZpefJgEaAoMf08MUpNB8Dw+/zCa/ZsAYBGe3Z2ZiAnuHmzRpgFi4DzxCg1XXxiEpHBAa5y0v0AoOQjI88RiXRRQSxEWTDcA30NxXpkcAAeTxk8njIAoMYjP1nIskyJZFlGNPo94vGfhMbr6emEosQMl5PlIjITbr99Rz8oxHwisCLYXkGWZczOLnL3WASYHX+cyeD3P1ZxnMngOJOxFcCClwVNO7HMGTxQ2DqM+MTlJcOazwye2UQwd04sLBkYUzXq8hvXr1uGE9hjILC7jLj3AHE4a0T2JmQrwAw2WlFZ2go4PExSgnT6CB5PmcUXduQjI88BgNQ9AHEJcgUQjKkafgh5LfMPZja5URHyUKiDIU2iqupLrvmEAshGny+AMVUznJ9d6mVZRiTSZTj7np5OAB+EewDgGvuwtrYcLSz8/HFNzVeQpI8oKblhGLIso6BA/AEtKirG7dtfoLW1AYnEJqqqqqHrEl69+hWhUAdUdQXmq5jbEZG2i43eTdmx/6Cy77LDNfPE2tpytKys5jFRL0kfkc1mUFRUjIuLCzp4mSAVkM1mUF7+GVR1BTs7H4TRAw4NiVG9sZZ5fiAZS6VO4fWWUkPaQdSr1SlKbIt9AWnJCXitOduWs/g3+lsAtp0E1LEPZhEszIJ4xCZyFlQIK6AOHChKbAuAq3SaiQHwyA0ibDPAE2InhpA6EFNyngBHIWYxLBxIDcROAlyLcQELaa4CeBCJsiXL43+JvwFxm6AzU9AoVAAAAABJRU5ErkJggg==",
+    snowman4: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE80lEQVRoge2YQUgbWRjH/9PG8DTsYTPZFUl7aAXBHrRsWvDgxciWObTHRRBaF+KtECpoUDyYHCTbKFhy2gULaw8FT3vYHiSSeNmbm2o8GJCyeyhFXGeyl9VOD2X2EL/ZNzNvJi9ub80fZJw3b973+7733ve+CdBRRx111FFHn7uUdl9IpfJW0PPnzxfaGjPUruFc7omj3TCO3V2tdkCkOqVSeevp03lPu2mavjDF4qYUxNXLGgeAUCjk+AuHu/H+/T8AgP7+m+jqup7d2yvnLg0QZNwPKBzuRk/PF1CUD1IQV6RHlxRjDIwxqGqfVH9fgHa95xWLKRfXHmhaMnDnfPIIxGIKLMvCtWvdAIBoNBLYv20A8o5kmiZez9zB65k79q5QFPlUEAjg3mbkHUGYponDhVEMjEQwMBLB4cIoSg8TAIBa7Y//DyCSyLvTN80wfxn7GgMjEZQeJnCy+h10/RyNxtmnA9B1y3EVQZy+idggH3+eajlmYCo2jGOoah8YYx4IoLnlbuV/w+HCqOfdv3Xg6vcbQIsIBALo+jkALwQvxhi+Wfvd0WaaJgzj+OL9YPlmwr29cq6r63q2v/8mFOUDwuFuhEKtzy5auG/f/oVG4wxbW5XAMyFwxIOTOrRG8uLuWCq7CU7HQAVu2Lv3H1lDvYPQtKSdUGKxnsABKezk/cFJHQCw++qF0JZvBO7ef2TNzmWwulIAtgBNS/p1dYi23dZWxW4bHr4NAJYIouWkjiXHsVMp42CjDopGkMgweT47l0G1WvXtLwRIpfIWDUCDbJdKqNX2cbDxX/tQ76Dn3cnJB5hfK5DXWF0pYHYug51KWQjgCUkqlbdyuScwjGNML2YxlhxHIpHAdqmEqKoikWim2mq16jso0IwcaadSRmbqsXBH+E6BqvZhfTmL6cUsdipl2yNew8O3PVANw0Cttm+3EYDfqegAIO95iF9+/MmOBg3m9lBG82sFZKYeA8hbfBSEEWCMwTRNO/vF4zewvpx19CEgHorX6krBcT87l0FhpeBZNzYJee9OuZRWi8VN8M+pXaTpxaxjymq1fczOZWywod5Bey1IfRcUi5twl2eMMcTjN2wYEkFFVdXh/epKAWPJcXtbk1oC0ID8lLjFR4XEL0JeXLu1++qFcgVohn9y8oGns2mantAHya8PJSIRlF2QxGI9WFp65njY7sHiNkp/DcNwtPP3nikQhVrGexKdmLwRoJkz+J0x1DuIXQhKMvf3nftjVFZRVcW39+45rgCwvpzFDzMZu59UTeiujmWUSCRQrVYdVxJfqAbugnR6wl4XsguRtF0qCa/uMs0DoOvniMeb/6tqH9LpCRwdnWJp6ZkUBGPMPkPcWl/O4ujoNBig0TizF6JsYekWHWRuicYKAfavGVY6PYFicRMDA19BVfug6+d4+fJXAM1zXnYKKEvS2mGM4d27P+3n/LEsXANUjtNi0bRky1rQD4QfU/SVJARoNM5aflK1I957XwCaBk1LOgpKqohlf3DwM84Xqy3rAb7wjEYjdviDDiS3+NwRtJDdNeFgKpU/JADeOEk2EpRR+bm/8P4WALuyJQBHmcJD+IHIyMc4r7riNu4HwcPIiF/EPsYBNCMgBCAIQP6ryC1azH7GWwK4QWRg+B0UZJgHgAyECEYkGaOc6qIvVmmYS6rO37Tz0/plwOqtu3zu+he2KV6dCES74AAAAABJRU5ErkJggg==",
+    snowman5: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAABACAYAAAB7jnWuAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFFElEQVRoge2XP0wbVxzHv5cAOuPECNtqDXZVpSiOHFUZTAQeKgYmD3gJikiQcAZLILWSVcSSdIhDB5wMVJElBpAywGCo0hCpzuAihQF1gA6gDAUJozKEGEs9LGEMdgrSdWjf493duz9maQd/pRO+d+/d9/N+7/fe/QDqqquuuuqqq666/mMJFxkUtflkXvtcZa/m9zVcxPjBvfv8Dgvzcq0glgGiNp9MjGcX5rl9KNjCvGwVwhIAMSfGE7kcAODgYF/RbzLUcw5iEcIUgJinLznxw/v3imde7zX6u1qtYmx1BZJ0gtm+sGWIS2YAxPzZs4eG/URRhMvVBgCIzL3C7MI8Hty7r5uwlgDMBvMg3O7mWoYYA5DZh8O9cLutJbbL1Qan0245Cro5wA66e7cbsixDEARIknlQaomCaQ4QCcJ5BNZHb2N99Daq1arKuPZzzRLAy5drAICloU6sj96GP2SHP2TH5qOvKITbLUCWZfh8NgCgOyHg9xsugy7AXGVPIPu+5eevsTTUCX/Ijlb3JwCAP3fsmjEkSpJ0AgAI+P3IFwoI+P26kzOMwFxlTxj46ydqTEx55iQ33r37g7blCwW0ezzY2t7W9bC0aEtDndzw3Uz+ClEU6f2HD7uQpBMUi8fIZpdxmp5STOZCAGTtInOv4HT+M3O9LCehLxaPkYn2W/oomR5ETx8nAADZ7DKKxWMUi8eQpBPuRZ5nov240xexdJCZ7oJ8oYCnjxM4TU8hE+1XgKivbHaZmncFg2avBmDhY3RYKiE1M407fREAwGJ6CllVH3at48Mj2MvnkS8UAACxWFJ+8eKR7lLoAsRiSTkeH8BkqEdTgLCGrGlXMIh8oYCuYBAPvx/H2OoK6aILYakeIPu53eOhhu0eD20jsyX3xNzlatPUDJYA2NmzLyZGh6USANC2w1IJi28ydDwxJ5/oeHxANwq6EZgM9SA+PILUzDRSM9OKZ7ySjFRJABRngyiKdHvypAGIxZLyaXqKJh0Axe/FNxl2bQGAzrZarSrMiW7c6NCNggbgND1Fky41M4348AiXnFQ/AKh5IvEc8fgABWKlFwXFORC1+eT48AhaHA60OBwAQBOP/GUliiI1EkUR4+PfIpX6UTfxBgcjiMWSisNJcxCpDbe2t+kHhSSfnlgItlYQRRHpdIY7RgOgzvijchm/ra/jqFzGUblsCMCKF4Vi8VjTpsiBxsFvkJo5P2TY5FOLl2x6UldOrDQRmMjlaJZfvXJFc5mJXQYio8OIew6QDGcTkT0J2R2gFjtbvW1pCHBwsE8NDksltDgcmrwwMk8kngMA2fcA9LcgF4BoIpfDd9eva9rHVle4syLm4XAvY7oPr/caN/l0AchAl6sNE7mcYv2MQi+KIuLxAcXaDw5GAOzqjgGAy+zNxsbb8cbGz550dHwBQfiI5uariksURTQ06H9Am5psuHXrc3R3f4m1td/h9fogywJev/4F4XAvstllqI9ibkVEyi529la2HfsPKvsuI11WN2xsvB13ODqeEHpB+IhKpYymJhvOzs7oxYsE2QGVShmtrZ8im13Gzs6u7uwBk4JESa/cy7x8IBGTpBM4nXaakEbSq9UCsVhyk30BKcmJeKU5W5az+nf2NwFsmQEE2Bs1BCs1EM9YZc6KgrAAAXAUiyU3AVgKp9oYAM9cAWEYAR6IEQwxNTGm5jwAUxA1DCsTU4WxGYBlGAvSmNYKwJMelKFZXf9L/Q1ZLIEPP3hiygAAAABJRU5ErkJggg==",
+    ice_a: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAACWklEQVRYhcWXMWvbQBiGH5sKg2scnKEEE8gSTKkLGTy4nVIwJUNnzYGQLqGY/IIM+QUmlE6hkFm/oHRpp1SDhw6BYjwa4yWEGGMiDuwOysmydJJOjkzexbJ90vvcd5++7w6eWbk0gy3LnuuMM82m9nO1Bkrjmx/ftB5aPzjRBnmRxvjatrUAgvfHgUQCWJY9Dxrvnl5oGV932qFnbW6+pNV6GwJRAkjzoPH+Xl0LgMfxfhC5LEGFiPzm0vjzpxa9wUjP3Kfff28A6HfavG82qR+chJZj6UvQ/OvRR6zuEACzUfWuVwGJgsgHB0vz/b06VndIbXvLhesOMRvVVMaOIwBovKmxe3qhTGIPwLLs+eX5oWcu1RuMUkNIY4CJEIynDu9euxCX54dL9SQUAZX86++PSpREHob3E24fHMZTJ3ZsDqJnH6fa9lZkYk6EwJjB7YNDuVigZBiAG5k//3r0O22Oz64wzWZOKwIqxb0V0tBvHqWVAZJUKISNVb+tDQBInP3aAYJSJa8SwP8aZSlV3ih7gciDEAsIY+aunwRTreWqCgHIwnE3mVIpFQE3mwuP/2dprgQwZovru8nU+6yUiksgWUmZA+VigZ1XFS8Cfpis5XWlYDV0HIHI45VSnaKSJNkVZRWEhC1ZyTAobSzK6DoU2g+k7Qm6Us0eMi5ESV1SJeWW7ClRUHXJqNmDIgKm2cwdn13R77S9PV0a9QajpU1LnDnEHEyeGgmzUeXL95+x5rEAEgLg1/ge0N+Wy8h9KG+4MDEHk1RHMwmSJB3jVABBkCSlOZw+u/4DBTU8A6u1w3IAAAAASUVORK5CYII=",
+    ice_b: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAABZElEQVRYhWNgGAWjYKQDRnI0rV598j828dBQc5LNI0kDzOKrO6dhldd2zyLZISykWA6z+PjJkwTVEusIohwAsxxmsUrBJKzqjk/II9kRBB2AbDnM4lRvZ4ZbT15gKobKwxxCjCOICgGY5fb62gwMDAwMt568YFCTkcBwBEyeoWAS0Y5gwmfx6tUn/89pikexHAawhgCSQ1QKJhFMKwQdQA+AM2jw+Z5YcPDiVYY7E/IYUuoW4syaVA0BNRkJkvWQ5QBcFsESJ9Ud8PPnbzj98+dvvBaR6giiHPAbSRU7OytBi/DlELIc8PDVe4ZnH7+gOISQIyh2QGioOWNK3UKGOxPyGN68ec3w/ss3rOpwOYKYHIDXAehAXkyQgYeVFacjyAV4HYAcCmev3SLaUGJ9z8BAZHsAuVBiYGDAWTAdvHiVgYGBgWjLiXYAzBEw9oFPH7GqceDjh7OJbQ8MeJNsFIyCUQAArSPCO0wsmXUAAAAASUVORK5CYII=",
+    ice_c: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAyklEQVRYhe3TMQrCQBCF4V+x1tbCMogQxDJYaZcTeAkFyVEkhZ0XcE9gKjtZSGtjrWCrFxgLIUQrdwRt5uuWYXbesgwYY4z5s4a20Tkv9fNslqjuUjU55+W4W3PwHoBxkhCnc1WI1jfDoywH4LBaVrXQEEEB3odPRvGzkOXqEM2QAMDL8H6vC8BkFBNlefUlIYID1J3O1yrEzzjnJR0OZLEpZFteZFteZLEpJB0O5H0zPqHeAoD9/QbAtN0B9Kuo5pxXvdoYY4ypewDpYlslVjDMiwAAAABJRU5ErkJggg==",
+    };
+    const assets = {};
+    for(const k in ASSETS_SRC){
+      const img = new Image();
+      img.src = ASSETS_SRC[k];
+      assets[k] = img;
+    }
+    // Tree variants used by the game
+    const TREES = ['tree0','tree1','tree2','tree3'];
+    const SNOWMEN = ['snowman0','snowman1','snowman2','snowman3','snowman4','snowman5'];
+    const ICES = ['ice_a','ice_b','ice_c'];
+
+    // Game canvas dimensions — match the live game so x positions translate
+    const GAME_W = 360;
+    const GAME_H = 640;
+
+    // ============ STATE ============
+    let level = {
+      name: 'My Level',
+      length: 4000,
+      obstacles: [], // each: { kind, y, xFrac } — xFrac is 0..1 (fraction of GAME_W)
+    };
+    let scrollY = 0;          // current top of view in world coordinates
+    let selectedKind = 'tree';
+    let deleteMode = false;
+    let pinchActive = false;
+
+    // ============ CANVAS SIZING ============
+    const canvas = document.getElementById('editor');
+    const ctx = canvas.getContext('2d');
+    let canvasW = 0, canvasH = 0, viewScale = 1;
+    // viewportX is the left edge of the GAME_W-wide playable area within the
+    // canvas. On wide screens the canvas extends well beyond the playable
+    // area, so we render the forest in those margins for visual context.
+    let viewportX = 0;
+
+    function resizeCanvas(){
+      const wrap = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = wrap.clientWidth;
+      const cssH = wrap.clientHeight;
+      canvas.width = cssW * dpr;
+      canvas.height = cssH * dpr;
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvasW = cssW;
+      canvasH = cssH;
+      // View scale: cap so wide desktop screens don't blow obstacles up huge.
+      // On a phone-width canvas (~360-400px) this is ~1x. On a wider canvas
+      // we render the GAME_W column centered, with forest filling the margins.
+      const MAX_SCALE = 1.4;
+      viewScale = Math.min(canvasW / GAME_W, MAX_SCALE);
+      viewportX = (canvasW - GAME_W * viewScale) / 2;
+      draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ============ COORDINATE HELPERS ============
+    // Screen y ↔ world y (vertical scrolling)
+    function screenToWorldY(sy){ return scrollY + sy / viewScale; }
+    function worldToScreenY(wy){ return (wy - scrollY) * viewScale; }
+    // Screen x ↔ world x — accounts for the centered viewport on wide canvases
+    function screenToWorldX(sx){ return (sx - viewportX) / viewScale; }
+    function worldToScreenX(wx){ return wx * viewScale + viewportX; }
+
+    // ============ DRAW ============
+    function draw(){
+      // Full canvas background — slightly darker so the playable viewport stands out
+      ctx.fillStyle = '#e5edf5';
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      // Playable viewport background (lighter snow)
+      ctx.fillStyle = '#f5f9fc';
+      ctx.fillRect(viewportX, 0, GAME_W * viewScale, canvasH);
+
+      // Procedurally-placed forest edges — visual reference only, not editable.
+      // Same algorithm as the game so the path frames the way it will in-game.
+      drawForestEdges();
+
+      // Path centerline — middle of the playable viewport
+      ctx.strokeStyle = 'rgba(38, 33, 92, 0.10)';
+      ctx.lineWidth = 1;
+      const centerX = viewportX + (GAME_W * viewScale) / 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, canvasH);
+      ctx.stroke();
+
+      // Distance markers every 500 world units — only across the playable viewport
+      ctx.fillStyle = 'rgba(38, 33, 92, 0.35)';
+      ctx.font = '500 11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      for(let y = 0; y <= level.length; y += 500){
+        const sy = worldToScreenY(y);
+        if(sy < -20 || sy > canvasH + 20) continue;
+        ctx.strokeStyle = 'rgba(38, 33, 92, 0.10)';
+        ctx.beginPath();
+        ctx.moveTo(viewportX, sy);
+        ctx.lineTo(viewportX + GAME_W * viewScale, sy);
+        ctx.stroke();
+        ctx.fillText(y + 'm', viewportX + 6, sy - 4);
+      }
+
+      // Start and finish lines (visual landmarks across playable area only)
+      const startY = worldToScreenY(0);
+      if(startY > -10 && startY < canvasH + 10){
+        ctx.fillStyle = '#2e7d4f';
+        ctx.fillRect(viewportX, startY - 2, GAME_W * viewScale, 4);
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('START', centerX, startY - 6);
+      }
+      const finishY = worldToScreenY(level.length - 200);
+      if(finishY > -10 && finishY < canvasH + 10){
+        const stripeW = 10;
+        for(let x = 0; x < GAME_W * viewScale; x += stripeW){
+          ctx.fillStyle = (Math.floor(x/stripeW) % 2 === 0) ? '#E24B4A' : '#FFFFFF';
+          ctx.fillRect(viewportX + x, finishY - 3, stripeW, 6);
+        }
+        ctx.fillStyle = '#E24B4A';
+        ctx.font = '700 12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('FINISH', centerX, finishY - 8);
+      }
+
+      // Render placed obstacles, sorted by visual bottom of each sprite so
+      // tall sprites (cliffs especially) layer correctly.
+      const sortKey = (o) => {
+        if(o.kind === 'tree' || o.kind === 'snowman' || o.kind === 'log') return o.y;
+        if(o.kind === 'cliff') return o.y; // sort by lip
+        if(o.kind === 'avalanche_trigger') return o.y;
+        if(o.kind === 'powder') return o.y - (o.h || 32*3) / 2 - 1; // flat ground, draws early
+        return o.y + 16;
+      };
+      const sorted = level.obstacles.slice().sort((a, b) => sortKey(a) - sortKey(b));
+      for(const o of sorted){
+        drawObstacle(o);
+      }
+
+      // Scroll thumb
+      const thumb = document.getElementById('scrollThumb');
+      const totalScroll = level.length + canvasH / viewScale;
+      const visible = canvasH / viewScale;
+      const thumbH = Math.max(20, (visible / totalScroll) * canvas.parentElement.clientHeight);
+      const thumbY = (scrollY / totalScroll) * canvas.parentElement.clientHeight;
+      thumb.style.height = thumbH + 'px';
+      thumb.style.top = thumbY + 'px';
+
+      // HUD info
+      document.getElementById('hudInfo').textContent =
+        `y: ${Math.round(scrollY)} – ${Math.round(scrollY + canvasH/viewScale)} / ${level.length}\nobstacles: ${level.obstacles.length}`;
+    }
+
+    // Forest edges: matches the game's generation, drawn as static decoration.
+    // The trees frame the playable area on both sides, giving you visual
+    // context for where the trail is and where obstacles will sit relative
+    // to the boundary.
+    function drawForestEdges(){
+      const EDGE_OFFSET = GAME_W/2 + 70;
+      const LAYER_STEP = 85;
+      const NUM_LAYERS = 2;
+      const centerWorldX = GAME_W / 2;
+      const treesToRender = [];
+
+      // LEFT side
+      for(let layer = 0; layer < NUM_LAYERS; layer++){
+        const layerOffset = EDGE_OFFSET + layer * LAYER_STEP;
+        const baseSpacing = 140 + layer * 10;
+        const layerSeed = (layer + 1) * 9277;
+        let y = 200 + layer * 70;
+        while(y < level.length){
+          const skip = ((y * 31 + layerSeed) % 6 === 0);
+          if(!skip){
+            const jitter = ((y * 12345 + layerSeed) % 50);
+            const x = centerWorldX - layerOffset + jitter;
+            treesToRender.push({ x, y, seed: y + layerSeed });
+          }
+          y += baseSpacing + ((y * 7919) % 60);
+        }
+      }
+      // RIGHT side
+      for(let layer = 0; layer < NUM_LAYERS; layer++){
+        const layerOffset = EDGE_OFFSET + layer * LAYER_STEP;
+        const baseSpacing = 140 + layer * 10;
+        const layerSeed = (layer + 1) * 4567;
+        let y = 280 + layer * 70;
+        while(y < level.length){
+          const skip = ((y * 31 + layerSeed) % 6 === 0);
+          if(!skip){
+            const jitter = ((y * 12345 + layerSeed) % 50);
+            const x = centerWorldX + layerOffset - jitter;
+            treesToRender.push({ x, y, seed: y + layerSeed + 100000 });
+          }
+          y += baseSpacing + ((y * 7919) % 60);
+        }
+      }
+
+      // Depth sort with placed obstacles by Y
+      treesToRender.sort((a, b) => a.y - b.y);
+      for(const t of treesToRender){
+        const variant = TREES[Math.abs(Math.floor(t.seed * 1.7)) % 4];
+        const img = assets[variant];
+        if(!img || !img.complete) continue;
+        const sx = worldToScreenX(t.x);
+        const sy = worldToScreenY(t.y);
+        if(sy < -250 || sy > canvasH + 50) continue;
+        const w = 33 * 4 * viewScale;
+        const h = 57 * 4 * viewScale;
+        ctx.drawImage(img, sx - w/2, sy - h, w, h);
+      }
+    }
+
+    function drawObstacle(o){
+      const sx = worldToScreenX(o.xFrac * GAME_W);
+      const sy = worldToScreenY(o.y);
+      if(sy < -200 || sy > canvasH + 200) return;
+
+      const SCALE = viewScale; // match in-game render scale
+
+      if(o.kind === 'tree'){
+        // Use explicit variant if specified, else deterministic hash
+        const variant = o.variant || TREES[Math.abs((o.y * 73856) ^ Math.floor(o.xFrac * 1000)) % 4];
+        const img = assets[variant];
+        const w = 33 * 4 * SCALE;
+        const h = 57 * 4 * SCALE;
+        if(img.complete) ctx.drawImage(img, sx - w/2, sy - h, w, h);
+      } else if(o.kind === 'log'){
+        const img = assets.log;
+        const w = 32 * 2 * SCALE;
+        const h = 32 * 2 * SCALE;
+        if(img.complete) ctx.drawImage(img, sx - w/2, sy - h, w, h);
+      } else if(o.kind === 'snowman'){
+        const variant = o.variant || SNOWMEN[Math.abs(Math.floor(o.y * 1.3)) % 6];
+        const img = assets[variant];
+        const w = 32 * 2 * SCALE;
+        const h = 64 * 2 * SCALE;
+        if(img.complete) ctx.drawImage(img, sx - w/2, sy - h, w, h);
+      } else if(o.kind === 'ice'){
+        const variant = o.variant || ICES[Math.abs(Math.floor(o.y * 0.7)) % 3];
+        const img = assets[variant];
+        const w = 32 * 3 * SCALE;
+        const h = 32 * 3 * SCALE;
+        if(img.complete) ctx.drawImage(img, sx - w/2, sy - h/2, w, h);
+      } else if(o.kind === 'jump'){
+        const img = assets.ramp;
+        const w = 32 * 3 * SCALE;
+        const h = 32 * 3 * SCALE;
+        if(img.complete) ctx.drawImage(img, sx - w/2, sy - h/2, w, h);
+      } else if(o.kind === 'cliff'){
+        // Cliff spans the playable viewport width. y is the TOP edge (the
+        // snow lip), with a thick snow cap above and the cliff face below.
+        // Matches the in-game render so what you place is what you play.
+        const img = assets.cliff;
+        const h = 96 * 4 * SCALE; // 4x as tall — matches game
+        const tileW = (32 * h) / 96;
+        const totalW = GAME_W * viewScale;
+        const tilesNeeded = Math.ceil(totalW / tileW);
+        const faceTop = sy;
+
+        // Snow cap above
+        const capH = 36 * SCALE;
+        const capGrad = ctx.createLinearGradient(0, faceTop - capH, 0, faceTop);
+        capGrad.addColorStop(0, 'rgba(245, 250, 255, 0)');
+        capGrad.addColorStop(0.55, 'rgba(232, 240, 252, 0.65)');
+        capGrad.addColorStop(1, 'rgba(220, 230, 245, 1.0)');
+        ctx.fillStyle = capGrad;
+        ctx.fillRect(viewportX, faceTop - capH, totalW, capH);
+        ctx.fillStyle = 'rgba(150, 165, 195, 0.35)';
+        ctx.fillRect(viewportX, faceTop - 2, totalW, 2);
+
+        // Cliff face
+        if(img.complete){
+          for(let i = 0; i < tilesNeeded; i++){
+            ctx.drawImage(img, viewportX + i * tileW, faceTop, tileW, h);
+          }
+        }
+
+        // Haze below
+        const baseY = faceTop + h;
+        const hazeH = 60 * SCALE;
+        const hazeGrad = ctx.createLinearGradient(0, baseY - 20, 0, baseY + hazeH);
+        hazeGrad.addColorStop(0, 'rgba(245, 250, 255, 0)');
+        hazeGrad.addColorStop(1, 'rgba(245, 250, 255, 0.85)');
+        ctx.fillStyle = hazeGrad;
+        ctx.fillRect(viewportX, baseY - 20, totalW, hazeH + 20);
+      } else if(o.kind === 'powder'){
+        // Powder snow patch — rendered as a single canvas pattern fill for
+        // seamless tiling. Matches the in-game render exactly.
+        const img = assets.powder;
+        const w = (o.w || 32*4) * SCALE;
+        const h = (o.h || 32*3) * SCALE;
+        if(img.complete){
+          const dx = sx - w / 2;
+          const dy = sy - h / 2;
+          // Cache pattern on the obstacle so it's not recreated each frame
+          if(!o._editorPattern){
+            try { o._editorPattern = ctx.createPattern(img, 'repeat'); } catch(e){}
+          }
+          if(o._editorPattern){
+            ctx.save();
+            ctx.translate(dx, dy);
+            // Apply SCALE so the tile appears at the same scale as other obstacles
+            ctx.scale(SCALE, SCALE);
+            ctx.fillStyle = o._editorPattern;
+            ctx.fillRect(0, 0, w / SCALE, h / SCALE);
+            ctx.restore();
+          }
+        }
+      } else if(o.kind === 'avalanche_trigger'){
+        // Editor-only visualization for the invisible avalanche trigger.
+        // A bold yellow warning band stretches across the playable area at
+        // the trigger's y — clearly marks the line that fires the event.
+        const bandY = sy;
+        const totalW = GAME_W * viewScale;
+        // Striped warning band
+        const stripeW = 16;
+        for(let x = 0; x < totalW; x += stripeW){
+          ctx.fillStyle = (Math.floor(x/stripeW) % 2 === 0) ? 'rgba(255, 200, 60, 0.85)' : 'rgba(40, 30, 0, 0.85)';
+          ctx.fillRect(viewportX + x, bandY - 6, stripeW, 12);
+        }
+        // Centered label
+        ctx.fillStyle = '#1a0d05';
+        ctx.font = '700 12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚠ AVALANCHE TRIGGER', viewportX + totalW/2, bandY + 1);
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      // Selection ring around just-placed items would go here if we tracked it
+    }
+
+    // ============ INPUT ============
+    // Touch / pointer model: a quick tap places or deletes; a drag scrolls.
+    // We don't have native gestures so we hand-roll: track touch start position
+    // and time; if movement is small enough and time is short enough, it's a tap.
+
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    let touchStartScrollY = 0;
+    let touchMoved = false;
+    let lastY = 0, velocity = 0;
+    let momentumId = null;
+
+    function onPointerDown(e){
+      // Pinch / multi-touch: don't initiate drag
+      if(e.pointerType === 'touch' && e.isPrimary === false) {
+        pinchActive = true;
+        return;
+      }
+      pinchActive = false;
+      cancelMomentum();
+      const rect = canvas.getBoundingClientRect();
+      touchStartX = e.clientX - rect.left;
+      touchStartY = e.clientY - rect.top;
+      touchStartTime = Date.now();
+      touchStartScrollY = scrollY;
+      touchMoved = false;
+      lastY = touchStartY;
+      velocity = 0;
+      canvas.setPointerCapture(e.pointerId);
+    }
+
+    function onPointerMove(e){
+      if(pinchActive) return;
+      if(!canvas.hasPointerCapture(e.pointerId)) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const dy = y - touchStartY;
+      // If we've moved more than 8px, treat it as a scroll drag
+      if(Math.abs(dy) > 8) touchMoved = true;
+      if(touchMoved){
+        scrollY = touchStartScrollY - dy / viewScale;
+        clampScroll();
+        // Track velocity for momentum
+        velocity = (y - lastY);
+        lastY = y;
+        draw();
+      }
+    }
+
+    function onPointerUp(e){
+      if(pinchActive){ pinchActive = false; return; }
+      if(!canvas.hasPointerCapture(e.pointerId)) return;
+      canvas.releasePointerCapture(e.pointerId);
+      const elapsed = Date.now() - touchStartTime;
+      if(!touchMoved && elapsed < 500){
+        // It's a tap — place or delete
+        const rect = canvas.getBoundingClientRect();
+        const tapX = e.clientX - rect.left;
+        const tapY = e.clientY - rect.top;
+        handleTap(tapX, tapY);
+      } else if(touchMoved && Math.abs(velocity) > 2){
+        // Start momentum scroll
+        startMomentum();
+      }
+    }
+
+    function startMomentum(){
+      function tick(){
+        velocity *= 0.93;
+        if(Math.abs(velocity) < 0.5){ momentumId = null; return; }
+        scrollY -= velocity / viewScale;
+        clampScroll();
+        draw();
+        momentumId = requestAnimationFrame(tick);
+      }
+      momentumId = requestAnimationFrame(tick);
+    }
+    function cancelMomentum(){
+      if(momentumId){ cancelAnimationFrame(momentumId); momentumId = null; }
+    }
+
+    function clampScroll(){
+      const maxScroll = level.length + 200 - canvasH / viewScale * 0.5;
+      if(scrollY < -100) scrollY = -100;
+      if(scrollY > maxScroll) scrollY = maxScroll;
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', e => {
+      if(canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      pinchActive = false;
+    });
+
+    // Wheel scroll (desktop)
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      cancelMomentum();
+      scrollY += e.deltaY / viewScale * 1.5;
+      clampScroll();
+      draw();
+    }, { passive: false });
+
+    function handleTap(tapX, tapY){
+      const worldY = screenToWorldY(tapY);
+      const worldX = screenToWorldX(tapX);
+      const xFrac = worldX / GAME_W;
+
+      if(deleteMode){
+        // Find nearest obstacle within a generous tap radius
+        const tapRadius = 40 / viewScale; // ~40 screen px in world units
+        let nearest = null, nearestDist = Infinity;
+        for(const o of level.obstacles){
+          const dx = (o.xFrac * GAME_W) - worldX;
+          const dy = o.y - worldY;
+          const dist = Math.hypot(dx, dy);
+          if(dist < tapRadius && dist < nearestDist){
+            nearest = o;
+            nearestDist = dist;
+          }
+        }
+        if(nearest){
+          level.obstacles = level.obstacles.filter(o => o !== nearest);
+          draw();
+        }
+        return;
+      }
+
+      // Place an obstacle
+      if(worldY < 0 || worldY > level.length) return;
+      // Cliffs and avalanche triggers span the full width — clamp x to center.
+      let placedXFrac = xFrac;
+      if(selectedKind === 'cliff' || selectedKind === 'avalanche_trigger'){
+        placedXFrac = 0.5;
+      }
+      const obstacle = {
+        kind: selectedKind,
+        y: Math.round(worldY),
+        xFrac: Math.max(0.05, Math.min(0.95, placedXFrac)),
+      };
+      // Attach explicit variant if one is chosen for this kind (otherwise
+      // the game will fall back to its hash-based selection)
+      if(selectedVariants[selectedKind]){
+        obstacle.variant = selectedVariants[selectedKind];
+      }
+      level.obstacles.push(obstacle);
+      draw();
+    }
+
+    // ============ PALETTE & VARIANTS ============
+    // Variants: kinds that have multiple sprite choices. The editor lets you
+    // pick which specific sprite a placed obstacle should use, instead of
+    // leaving it up to the game's deterministic hashing.
+    const VARIANTS = {
+      tree:    ['tree0', 'tree1', 'tree2', 'tree3'],
+      snowman: ['snowman0', 'snowman1', 'snowman2', 'snowman3', 'snowman4', 'snowman5'],
+      ice:     ['ice_a', 'ice_b', 'ice_c'],
+    };
+    // Remember the most-recently-picked variant per kind so switching kinds
+    // and back doesn't reset your selection.
+    const selectedVariants = { tree: null, snowman: null, ice: null };
+
+    const paletteBtns = document.querySelectorAll('#palette button');
+    const variantStrip = document.getElementById('variantStrip');
+
+    function setSelectedKind(kind){
+      selectedKind = kind;
+      deleteMode = false;
+      paletteBtns.forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
+      document.getElementById('btnDelete').classList.remove('active');
+      renderVariantStrip();
+    }
+
+    function renderVariantStrip(){
+      variantStrip.innerHTML = '';
+      const variants = VARIANTS[selectedKind];
+      if(!variants){
+        variantStrip.classList.remove('show');
+        return;
+      }
+      variantStrip.classList.add('show');
+      // "Random" chip — fall back to hash-based selection
+      const randomChip = document.createElement('div');
+      randomChip.className = 'variant-chip' + (selectedVariants[selectedKind] === null ? ' active' : '');
+      const randomLabel = document.createElement('div');
+      randomLabel.style.cssText = 'color:#E8F0FC;font-size:11px;font-weight:600;text-align:center;line-height:1.2;';
+      randomLabel.innerHTML = 'Any<br>(random)';
+      randomChip.appendChild(randomLabel);
+      randomChip.addEventListener('click', () => {
+        selectedVariants[selectedKind] = null;
+        renderVariantStrip();
+      });
+      variantStrip.appendChild(randomChip);
+
+      // One chip per variant, with a small canvas preview of the sprite
+      for(const v of variants){
+        const chip = document.createElement('div');
+        chip.className = 'variant-chip' + (selectedVariants[selectedKind] === v ? ' active' : '');
+        const c = document.createElement('canvas');
+        c.width = 48; c.height = 48;
+        const cctx = c.getContext('2d');
+        const img = assets[v];
+        if(img && img.complete){
+          // Fit image into the canvas keeping aspect
+          const r = Math.min(48 / img.width, 48 / img.height);
+          const w = img.width * r, h = img.height * r;
+          cctx.drawImage(img, (48 - w)/2, (48 - h)/2, w, h);
+        } else if(img){
+          img.addEventListener('load', () => {
+            const r = Math.min(48 / img.width, 48 / img.height);
+            const w = img.width * r, h = img.height * r;
+            cctx.clearRect(0, 0, 48, 48);
+            cctx.drawImage(img, (48 - w)/2, (48 - h)/2, w, h);
+          });
+        }
+        chip.appendChild(c);
+        chip.addEventListener('click', () => {
+          selectedVariants[selectedKind] = v;
+          renderVariantStrip();
+        });
+        variantStrip.appendChild(chip);
+      }
+    }
+
+    paletteBtns.forEach(btn => {
+      btn.addEventListener('click', () => setSelectedKind(btn.dataset.kind));
+    });
+    setSelectedKind('tree');
+
+    document.getElementById('btnDelete').addEventListener('click', () => {
+      deleteMode = !deleteMode;
+      document.getElementById('btnDelete').classList.toggle('active', deleteMode);
+      if(deleteMode){
+        paletteBtns.forEach(b => b.classList.remove('active'));
+        variantStrip.classList.remove('show');
+      } else {
+        setSelectedKind(selectedKind);
+      }
+    });
+
+    // ============ LENGTH ============
+    document.getElementById('btnLength').addEventListener('click', () => {
+      const input = prompt('Level length (e.g. 4000, 5500, 7500):', String(level.length));
+      if(!input) return;
+      const n = parseInt(input, 10);
+      if(isNaN(n) || n < 1000 || n > 20000){
+        alert('Length must be between 1000 and 20000');
+        return;
+      }
+      level.length = n;
+      draw();
+    });
+
+    // ============ NEW ============
+    document.getElementById('btnNew').addEventListener('click', () => {
+      if(level.obstacles.length > 0 && !confirm('Clear current level? (Save first if you want to keep it.)')) return;
+      level = { name: 'My Level', length: 4000, obstacles: [] };
+      scrollY = 0;
+      document.getElementById('levelName').value = level.name;
+      draw();
+    });
+
+    // ============ NAME ============
+    document.getElementById('levelName').addEventListener('input', e => {
+      level.name = e.target.value || 'My Level';
+    });
+
+    // ============ SAVE / LOAD ============
+    function getSaved(){
+      try {
+        const raw = localStorage.getItem('slope_editor_saves');
+        return raw ? JSON.parse(raw) : {};
+      } catch(e){ return {}; }
+    }
+    function writeSaved(saves){
+      try { localStorage.setItem('slope_editor_saves', JSON.stringify(saves)); } catch(e){}
+    }
+
+    document.getElementById('btnSave').addEventListener('click', () => {
+      const saves = getSaved();
+      const id = level.name.trim() || 'Untitled';
+      saves[id] = {
+        name: level.name,
+        length: level.length,
+        obstacles: level.obstacles,
+        savedAt: Date.now(),
+      };
+      writeSaved(saves);
+      flashMessage('Saved "' + id + '"');
+    });
+
+    document.getElementById('btnLoad').addEventListener('click', () => {
+      const saves = getSaved();
+      const keys = Object.keys(saves);
+      if(keys.length === 0){
+        alert('No saved levels yet.');
+        return;
+      }
+      showLoadModal(saves);
+    });
+
+    function showLoadModal(saves){
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      bg.innerHTML = `
+        <div class="modal">
+          <h2>Load level</h2>
+          <div class="modal-list" id="loadList"></div>
+          <div class="row">
+            <button id="modalClose">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(bg);
+      const list = bg.querySelector('#loadList');
+      const sortedKeys = Object.keys(saves).sort((a, b) => (saves[b].savedAt || 0) - (saves[a].savedAt || 0));
+      for(const key of sortedKeys){
+        const s = saves[key];
+        const item = document.createElement('div');
+        item.className = 'modal-list-item';
+        item.innerHTML = `
+          <div>
+            <div class="name">${escapeHtml(s.name)}</div>
+            <div class="meta">${s.obstacles.length} obstacles · ${s.length}m</div>
+          </div>
+          <button data-action="load">Load</button>
+          <button data-action="delete" class="delete">×</button>
+        `;
+        item.querySelector('[data-action=load]').addEventListener('click', () => {
+          level = JSON.parse(JSON.stringify(s));
+          scrollY = 0;
+          document.getElementById('levelName').value = level.name;
+          bg.remove();
+          draw();
+        });
+        item.querySelector('[data-action=delete]').addEventListener('click', () => {
+          if(!confirm('Delete "' + s.name + '"?')) return;
+          const cur = getSaved();
+          delete cur[key];
+          writeSaved(cur);
+          item.remove();
+        });
+        list.appendChild(item);
+      }
+      bg.querySelector('#modalClose').addEventListener('click', () => bg.remove());
+      bg.addEventListener('click', e => { if(e.target === bg) bg.remove(); });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ============ EXPORT ============
+    document.getElementById('btnExport').addEventListener('click', () => {
+      // Generate the JS snippet ready to paste into the game's LEVELS array
+      const id = level.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'custom';
+      const finishY = level.length - 200;
+      const sorted = level.obstacles.slice().sort((a, b) => a.y - b.y);
+      const obstaclesStr = sorted.map(o => {
+        const variantPart = o.variant ? `, variant:'${o.variant}'` : '';
+        return `        { kind:'${o.kind}', y: ${o.y}, x: W*${o.xFrac.toFixed(2)}${variantPart} },`;
+      }).join('\n');
+      const snippet = `    {
+      id: '${id}',
+      name: '${level.name.replace(/'/g, "\\'")}',
+      mapX: 0.50, mapY: 0.50,
+      length: ${level.length},
+      finishY: ${finishY},
+      obstacles: [
+${obstaclesStr}
+      ],
+    },`;
+      showExportModal(snippet);
+    });
+
+    function showExportModal(snippet){
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      bg.innerHTML = `
+        <div class="modal">
+          <h2>Level data</h2>
+          <div style="font-size:12px;opacity:0.8;">Copy this and paste it into the LEVELS array in skier.html, or share it with Claude to add it to the game.</div>
+          <textarea readonly id="exportText"></textarea>
+          <div class="row">
+            <button id="modalCopy" class="primary">Copy</button>
+            <button id="modalDownload">Download</button>
+            <button id="modalClose">Done</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(bg);
+      const ta = bg.querySelector('#exportText');
+      ta.value = snippet;
+      bg.querySelector('#modalCopy').addEventListener('click', () => {
+        ta.select();
+        try {
+          navigator.clipboard.writeText(snippet);
+          flashMessage('Copied to clipboard');
+        } catch(e){
+          document.execCommand('copy');
+          flashMessage('Copied to clipboard');
+        }
+      });
+      bg.querySelector('#modalDownload').addEventListener('click', () => {
+        const blob = new Blob([snippet], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const id = level.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'level';
+        a.download = id + '.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+      bg.querySelector('#modalClose').addEventListener('click', () => bg.remove());
+      bg.addEventListener('click', e => { if(e.target === bg) bg.remove(); });
+    }
+
+    // ============ FLASH MESSAGES ============
+    function flashMessage(msg){
+      const div = document.createElement('div');
+      div.textContent = msg;
+      div.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(46, 125, 79, 0.95);
+        color: white;
+        padding: 10px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 200;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      `;
+      document.body.appendChild(div);
+      setTimeout(() => { div.style.opacity = '0'; }, 1500);
+      setTimeout(() => div.remove(), 2000);
+    }
+
+    // ============ BOOT ============
+    resizeCanvas();
+    // Wait a tick for images to start decoding then redraw
+    setTimeout(draw, 100);
+    setTimeout(draw, 500);
+
+    // Auto-save on changes (very passive — just keep the last state in
+    // localStorage so refresh doesn't lose work)
+    setInterval(() => {
+      try {
+        localStorage.setItem('slope_editor_autosave', JSON.stringify(level));
+      } catch(e){}
+    }, 5000);
+    // Restore autosave on load
+    try {
+      const auto = localStorage.getItem('slope_editor_autosave');
+      if(auto){
+        const parsed = JSON.parse(auto);
+        if(parsed && Array.isArray(parsed.obstacles)){
+          level = parsed;
+          document.getElementById('levelName').value = level.name || 'My Level';
+          draw();
+        }
+      }
+    } catch(e){}
+  })();
+  </script>
+</body>
+</html>
