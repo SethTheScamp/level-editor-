@@ -279,6 +279,7 @@
   </div>
 
   <div class="actions">
+    <button id="btnAutoTrees">🌲 Auto-trees</button>
     <button id="btnDelete" class="delete-mode">Delete mode</button>
     <button id="btnLength">Length</button>
     <button id="btnLoad">Load</button>
@@ -882,6 +883,278 @@
         setSelectedKind(selectedKind);
       }
     });
+
+    // ============ AUTO-TREES ============
+    // Generates a batch of randomly-placed trees that fill gaps in the level
+    // without overlapping any existing obstacles. Used to quickly populate
+    // forest sections without hand-placing every trunk. The last batch is
+    // tracked so it can be undone in one click.
+    let lastAutoBatch = []; // array of obstacle refs from the most recent place
+
+    // Return {w, h, anchor} for an obstacle kind. Anchor 'base' means the
+    // sprite's y is the bottom (feet on snow). 'center' means y is the
+    // middle of the sprite. 'lip' is the cliff top edge. Dimensions are in
+    // world units, matching how the game ultimately renders these.
+    function obstacleFootprint(o){
+      const k = o.kind;
+      if(k === 'tree')              return { w: 33*4, h: 57*4, anchor: 'base' };
+      if(k === 'log')               return { w: 32*2, h: 32*2, anchor: 'base' };
+      if(k === 'snowman')           return { w: 32*2, h: 64*2, anchor: 'base' };
+      if(k === 'ice')               return { w: 32*3, h: 32*3, anchor: 'center' };
+      if(k === 'jump')              return { w: 32*3, h: 32*3, anchor: 'center' };
+      if(k === 'powder')            return { w: o.w || 32*4, h: o.h || 32*3, anchor: 'center' };
+      if(k === 'cliff')             return { w: GAME_W, h: 96*4, anchor: 'lip' };
+      if(k === 'avalanche_trigger') return { w: GAME_W, h: 4,    anchor: 'center' };
+      return { w: 32, h: 32, anchor: 'center' };
+    }
+
+    // Axis-aligned bounding box (world units) for an obstacle, accounting
+    // for its anchor. Returns {x0, x1, y0, y1}.
+    function obstacleAABB(o){
+      const f = obstacleFootprint(o);
+      const cx = o.xFrac * GAME_W;
+      let y0, y1;
+      if(f.anchor === 'base'){
+        y0 = o.y - f.h; y1 = o.y;
+      } else if(f.anchor === 'lip'){
+        // Cliff: lip at o.y, face extends downward
+        y0 = o.y; y1 = o.y + f.h;
+      } else {
+        y0 = o.y - f.h/2; y1 = o.y + f.h/2;
+      }
+      // Cliffs and avalanche triggers span full width — clamp via center
+      let x0, x1;
+      if(o.kind === 'cliff' || o.kind === 'avalanche_trigger'){
+        x0 = 0; x1 = GAME_W;
+      } else {
+        x0 = cx - f.w/2; x1 = cx + f.w/2;
+      }
+      return { x0, x1, y0, y1 };
+    }
+
+    // Rough collision test between two AABBs with optional padding.
+    function aabbOverlap(a, b, pad){
+      pad = pad || 0;
+      return !(a.x1 + pad < b.x0 || a.x0 - pad > b.x1
+            || a.y1 + pad < b.y0 || a.y0 - pad > b.y1);
+    }
+
+    // The trunk of a tree is narrow, so for tree-vs-tree spacing we use a
+    // tighter footprint (just the trunk band) rather than the full canopy
+    // rectangle — otherwise trees end up absurdly far apart.
+    function treeTrunkAABB(xFrac, y){
+      const cx = xFrac * GAME_W;
+      return { x0: cx - 14, x1: cx + 14, y0: y - 12, y1: y + 4 };
+    }
+
+    // Generate `count` tree positions inside [yMin, yMax] that don't collide
+    // with any existing obstacle. Uses rejection sampling with a per-tree
+    // attempt cap so densely-packed levels don't hang the browser.
+    function generateAutoTrees(opts){
+      const { count, yMin, yMax, edgeBias, variant, minSpacing } = opts;
+      const placed = [];
+      const existing = level.obstacles.slice();
+      const ATTEMPTS_PER_TREE = 25;
+
+      for(let i = 0; i < count; i++){
+        let placedThis = false;
+        for(let a = 0; a < ATTEMPTS_PER_TREE; a++){
+          const y = yMin + Math.random() * (yMax - yMin);
+          // Edge bias: at bias=0 uniform, at bias=1 strongly pushed to sides.
+          // We pick a centered random in [-1, 1], skew it outward, then
+          // remap into [0.04, 0.96].
+          let r = Math.random() * 2 - 1; // -1..1
+          if(edgeBias > 0){
+            const sign = r < 0 ? -1 : 1;
+            const mag = Math.abs(r);
+            // Raise magnitude to a power < 1 → pushes values toward |1|
+            const pushed = Math.pow(mag, 1 - edgeBias * 0.7);
+            r = sign * pushed;
+          }
+          const xFrac = 0.5 + r * 0.46; // → 0.04 .. 0.96
+
+          // Candidate tree AABB (use trunk footprint for self-vs-self)
+          const candTrunk = treeTrunkAABB(xFrac, y);
+          // For checking against non-tree obstacles, use full canopy
+          const candCanopy = {
+            x0: xFrac * GAME_W - 33*2,
+            x1: xFrac * GAME_W + 33*2,
+            y0: y - 57*4,
+            y1: y,
+          };
+
+          // Reject if too close to anything already on the level
+          let collides = false;
+          for(const o of existing){
+            const oBox = obstacleAABB(o);
+            // Trees use trunk-vs-trunk spacing for tightness; everything
+            // else uses canopy to keep clear of wide hazards.
+            if(o.kind === 'tree'){
+              const otrunk = treeTrunkAABB(o.xFrac, o.y);
+              if(aabbOverlap(candTrunk, otrunk, minSpacing)){ collides = true; break; }
+            } else {
+              if(aabbOverlap(candCanopy, oBox, minSpacing * 0.4)){ collides = true; break; }
+            }
+          }
+          // Also check against trees we've already placed in this batch
+          if(!collides){
+            for(const p of placed){
+              const ptrunk = treeTrunkAABB(p.xFrac, p.y);
+              if(aabbOverlap(candTrunk, ptrunk, minSpacing)){ collides = true; break; }
+            }
+          }
+          if(collides) continue;
+
+          // Accepted — build obstacle
+          const tree = {
+            kind: 'tree',
+            y: Math.round(y),
+            xFrac: Math.max(0.04, Math.min(0.96, xFrac)),
+          };
+          if(variant) tree.variant = variant;
+          placed.push(tree);
+          placedThis = true;
+          break;
+        }
+        if(!placedThis){
+          // Couldn't find a spot after many tries — level is too full to
+          // continue. Bail out rather than spin forever.
+          break;
+        }
+      }
+      return placed;
+    }
+
+    document.getElementById('btnAutoTrees').addEventListener('click', () => {
+      showAutoTreesModal();
+    });
+
+    function showAutoTreesModal(){
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      const viewYMin = Math.max(0, Math.round(scrollY));
+      const viewYMax = Math.min(level.length, Math.round(scrollY + canvasH / viewScale));
+      const hasLast = lastAutoBatch.length > 0;
+      bg.innerHTML = `
+        <div class="modal" style="max-width:340px">
+          <h2>Auto-place trees</h2>
+          <div style="font-size:11px; opacity:0.7; margin-bottom:10px">
+            Fills empty space with trees. Won't overlap anything already placed.
+          </div>
+
+          <label>Density</label>
+          <select id="atDensity" style="width:100%; margin-bottom:10px; padding:6px; background:#1a1f2e; color:#eaecf5; border:1px solid #2c3344; border-radius:4px">
+            <option value="sparse">Sparse</option>
+            <option value="medium" selected>Medium</option>
+            <option value="dense">Dense</option>
+          </select>
+
+          <label>Region</label>
+          <select id="atRegion" style="width:100%; margin-bottom:10px; padding:6px; background:#1a1f2e; color:#eaecf5; border:1px solid #2c3344; border-radius:4px">
+            <option value="view" selected>Current view (y ${viewYMin}–${viewYMax})</option>
+            <option value="all">Whole level (y 0–${level.length})</option>
+            <option value="custom">Custom range…</option>
+          </select>
+          <div id="atCustomRow" style="display:none; gap:8px; margin-bottom:10px">
+            <div style="flex:1">
+              <label>From y</label>
+              <input id="atYMin" type="number" value="${viewYMin}" style="width:100%">
+            </div>
+            <div style="flex:1">
+              <label>To y</label>
+              <input id="atYMax" type="number" value="${viewYMax}" style="width:100%">
+            </div>
+          </div>
+
+          <label>Edge bias <span id="atBiasVal" style="opacity:0.6">0.5</span></label>
+          <input id="atBias" type="range" min="0" max="1" step="0.05" value="0.5" style="width:100%; margin-bottom:10px">
+
+          <label>Variant</label>
+          <select id="atVariant" style="width:100%; margin-bottom:14px; padding:6px; background:#1a1f2e; color:#eaecf5; border:1px solid #2c3344; border-radius:4px">
+            <option value="">Random mix</option>
+            <option value="tree0">tree0</option>
+            <option value="tree1">tree1</option>
+            <option value="tree2">tree2</option>
+            <option value="tree3">tree3</option>
+          </select>
+
+          <div class="row">
+            <button id="atCancel">Cancel</button>
+            ${hasLast ? '<button id="atUndo">Undo last</button>' : ''}
+            <button id="atPlace" class="primary">Place</button>
+          </div>
+        </div>
+      `;
+      // Show/hide custom range row
+      const regionSel = bg.querySelector('#atRegion');
+      const customRow = bg.querySelector('#atCustomRow');
+      regionSel.addEventListener('change', () => {
+        customRow.style.display = regionSel.value === 'custom' ? 'flex' : 'none';
+      });
+      // Bias slider readout
+      const biasSlider = bg.querySelector('#atBias');
+      const biasVal = bg.querySelector('#atBiasVal');
+      biasSlider.addEventListener('input', () => { biasVal.textContent = biasSlider.value; });
+
+      bg.querySelector('#atCancel').addEventListener('click', () => bg.remove());
+      if(hasLast){
+        bg.querySelector('#atUndo').addEventListener('click', () => {
+          const toRemove = new Set(lastAutoBatch);
+          level.obstacles = level.obstacles.filter(o => !toRemove.has(o));
+          lastAutoBatch = [];
+          draw();
+          bg.remove();
+        });
+      }
+      bg.querySelector('#atPlace').addEventListener('click', () => {
+        const density = bg.querySelector('#atDensity').value;
+        const region = regionSel.value;
+        const edgeBias = parseFloat(biasSlider.value);
+        const variant = bg.querySelector('#atVariant').value || null;
+
+        let yMin, yMax;
+        if(region === 'view'){ yMin = viewYMin; yMax = viewYMax; }
+        else if(region === 'all'){ yMin = 0; yMax = level.length; }
+        else {
+          yMin = Math.max(0, parseInt(bg.querySelector('#atYMin').value, 10) || 0);
+          yMax = Math.min(level.length, parseInt(bg.querySelector('#atYMax').value, 10) || level.length);
+        }
+        if(yMax <= yMin){ alert('Invalid range'); return; }
+
+        // Density → target count + spacing (in world units). A tree's full
+        // sprite is 132x228 world units; sparse leaves big gaps, dense
+        // packs tighter but still legible from the player's perspective.
+        const span = yMax - yMin;
+        let perThousand, minSpacing;
+        if(density === 'sparse'){ perThousand = 6;  minSpacing = 40; }
+        else if(density === 'dense'){ perThousand = 22; minSpacing = 10; }
+        else                       { perThousand = 12; minSpacing = 22; }
+        const count = Math.max(1, Math.round(span / 1000 * perThousand));
+
+        const newTrees = generateAutoTrees({
+          count, yMin, yMax, edgeBias, variant, minSpacing,
+        });
+
+        if(newTrees.length === 0){
+          alert('No room to place trees in that range — try a different region or lower density.');
+          return;
+        }
+
+        for(const t of newTrees) level.obstacles.push(t);
+        lastAutoBatch = newTrees;
+        draw();
+        bg.remove();
+
+        // Brief inline toast in the status pill so you know what happened
+        const requested = count;
+        if(newTrees.length < requested){
+          setTimeout(() => {
+            alert(`Placed ${newTrees.length} of ${requested} trees — level was too full to fit the rest.`);
+          }, 50);
+        }
+      });
+      document.body.appendChild(bg);
+    }
 
     // ============ LENGTH ============
     document.getElementById('btnLength').addEventListener('click', () => {
