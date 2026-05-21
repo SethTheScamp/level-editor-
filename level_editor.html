@@ -309,6 +309,11 @@
     ice_a: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAACWklEQVRYhcWXMWvbQBiGH5sKg2scnKEEE8gSTKkLGTy4nVIwJUNnzYGQLqGY/IIM+QUmlE6hkFm/oHRpp1SDhw6BYjwa4yWEGGMiDuwOysmydJJOjkzexbJ90vvcd5++7w6eWbk0gy3LnuuMM82m9nO1Bkrjmx/ftB5aPzjRBnmRxvjatrUAgvfHgUQCWJY9Dxrvnl5oGV932qFnbW6+pNV6GwJRAkjzoPH+Xl0LgMfxfhC5LEGFiPzm0vjzpxa9wUjP3Kfff28A6HfavG82qR+chJZj6UvQ/OvRR6zuEACzUfWuVwGJgsgHB0vz/b06VndIbXvLhesOMRvVVMaOIwBovKmxe3qhTGIPwLLs+eX5oWcu1RuMUkNIY4CJEIynDu9euxCX54dL9SQUAZX86++PSpREHob3E24fHMZTJ3ZsDqJnH6fa9lZkYk6EwJjB7YNDuVigZBiAG5k//3r0O22Oz64wzWZOKwIqxb0V0tBvHqWVAZJUKISNVb+tDQBInP3aAYJSJa8SwP8aZSlV3ih7gciDEAsIY+aunwRTreWqCgHIwnE3mVIpFQE3mwuP/2dprgQwZovru8nU+6yUiksgWUmZA+VigZ1XFS8Cfpis5XWlYDV0HIHI45VSnaKSJNkVZRWEhC1ZyTAobSzK6DoU2g+k7Qm6Us0eMi5ESV1SJeWW7ClRUHXJqNmDIgKm2cwdn13R77S9PV0a9QajpU1LnDnEHEyeGgmzUeXL95+x5rEAEgLg1/ge0N+Wy8h9KG+4MDEHk1RHMwmSJB3jVABBkCSlOZw+u/4DBTU8A6u1w3IAAAAASUVORK5CYII=",
     ice_b: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAABZElEQVRYhWNgGAWjYKQDRnI0rV598j828dBQc5LNI0kDzOKrO6dhldd2zyLZISykWA6z+PjJkwTVEusIohwAsxxmsUrBJKzqjk/II9kRBB2AbDnM4lRvZ4ZbT15gKobKwxxCjCOICgGY5fb62gwMDAwMt568YFCTkcBwBEyeoWAS0Y5gwmfx6tUn/89pikexHAawhgCSQ1QKJhFMKwQdQA+AM2jw+Z5YcPDiVYY7E/IYUuoW4syaVA0BNRkJkvWQ5QBcFsESJ9Ud8PPnbzj98+dvvBaR6giiHPAbSRU7OytBi/DlELIc8PDVe4ZnH7+gOISQIyh2QGioOWNK3UKGOxPyGN68ec3w/ss3rOpwOYKYHIDXAehAXkyQgYeVFacjyAV4HYAcCmev3SLaUGJ9z8BAZHsAuVBiYGDAWTAdvHiVgYGBgWjLiXYAzBEw9oFPH7GqceDjh7OJbQ8MeJNsFIyCUQAArSPCO0wsmXUAAAAASUVORK5CYII=",
     ice_c: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAyklEQVRYhe3TMQrCQBCF4V+x1tbCMogQxDJYaZcTeAkFyVEkhZ0XcE9gKjtZSGtjrWCrFxgLIUQrdwRt5uuWYXbesgwYY4z5s4a20Tkv9fNslqjuUjU55+W4W3PwHoBxkhCnc1WI1jfDoywH4LBaVrXQEEEB3odPRvGzkOXqEM2QAMDL8H6vC8BkFBNlefUlIYID1J3O1yrEzzjnJR0OZLEpZFteZFteZLEpJB0O5H0zPqHeAoD9/QbAtN0B9Kuo5pxXvdoYY4ypewDpYlslVjDMiwAAAABJRU5ErkJggg==",
+    // Borderless variants — used when ice patches touch so the cluster
+    // reads as one continuous frozen sheet with one outer outline.
+    ice_a_nb: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABiUlEQVR42s1X0WqDMBQ9BoMg0iKDUbbC3vq0t+0P+g3bR66/sv6Az534IlIRaQi4PQyz2CUabVJ7X5RwyTm5ObmcC8wc3pjkj8+vb5O899dHzyoBU+ApRDwXwGOIeK7B27g7Fthun//hkWuAA0C+jJXrxAR8s15ZIaHam/QlvL08AACSQyb+bZMgfcm7fSpOv9uno0kwxgEAFefaHDJ078khG02iBW7By5p11mQsYnKS5JApq6ILToD0WCE/MZQ1G+4DU1S/Wa86xOSoOAdtgPzEsAgDRJSKygQB7fQHMlVMOnAAAlAGH9SA7ZBP2rfmjIBciVkqoNONEQH5ydgMlW583TPiUvOgze/9tcRUdzk1fNUTKmuGoqoRR6FQc9AjJKsEaPP3X1S1+MZR2CFiK5QaWIQBnu5jUQGZjDNPeN4NGePgBKKVmjSVKS7JH3rH0ZI6fRmeayc05BGJ60YzSoRj/PyQdzB1yOSSoUJHQmdaVHuTSycbnZU7J6Hb83YHk5sYza4xnM4ePw7uvE3FnFRRAAAAAElFTkSuQmCC",
+    ice_b_nb: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAzklEQVR42mNgGAWjYKQDRnI0rTrz9D828TATaUaaOgCXxZQ4hInalpOqlonaBpKqh4kcg9RkJKjmCCZyEuGtJy+o5ggmcjXfevKCKtmQaaDLASZqJjxyzKJqCBCbLih2AC6LSEmcJDng58/fcPrnz994LSLVEUQ54DeSKnZ2VoIWkZJDiHLAw1fvGZ59/ILiEHKDnGgHIFco2tJiDO+/fCM7yPFVTkQnQnkxQQYeVlaqF0qMlORhalTNTJQaQKleJmoZRK6eAW+SjYJRMAoAhfpnd4AlKDMAAAAASUVORK5CYII=",
+    ice_c_nb: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAaklEQVR42mNgGAWjYBSMglEwwICRXI2rzjz9j8wPM5EmyywmaliOS4wmDsBnETmOYKKW5eQ6gomSBKQmI0FxIqTIAbeevKDYEYzUTAPk5AaSQwCfBeRmRQZKygJys98oGAWjYBSMglEAAwA8gieF2xQkOwAAAABJRU5ErkJggg==",
     };
     const assets = {};
     for(const k in ASSETS_SRC){
@@ -366,6 +371,22 @@
       draw();
     }
     window.addEventListener('resize', resizeCanvas);
+
+    // Lazily-created offscreen canvas used by the ice-cluster union render
+    // pass. Sized to match the main canvas's device-pixel buffer; reused
+    // across frames so we don't allocate every render.
+    let _iceOffscreen = null;
+    function ensureIceOffscreen(){
+      if(!_iceOffscreen
+         || _iceOffscreen.canvas.width !== canvas.width
+         || _iceOffscreen.canvas.height !== canvas.height){
+        const c = document.createElement('canvas');
+        c.width = canvas.width;
+        c.height = canvas.height;
+        _iceOffscreen = { canvas: c, ctx: c.getContext('2d') };
+      }
+      return _iceOffscreen;
+    }
 
     // ============ COORDINATE HELPERS ============
     // Screen y ↔ world y (vertical scrolling)
@@ -447,14 +468,16 @@
       };
       const sorted = level.obstacles.slice().sort((a, b) => sortKey(a) - sortKey(b));
       for(const o of sorted){
+        // Ice is handled by the union-render pass below — skip per-sprite
+        // draw so we don't double-render with borders poking through.
+        if(o.kind === 'ice') continue;
         drawObstacle(o);
       }
 
-      // Ice seam-merge pass: matches the in-game render. Where two ice
-      // patches touch, redraw a small disc of the sprite's INTERIOR
-      // (clipped to a circle smaller than the border ring) at the
-      // midpoint — the texture continues across the join, neither
-      // sprite's dark outline shows where they meet.
+      // Ice union-render pass: group touching ice patches into clusters
+      // and render each as a single unified shape (one continuous interior
+      // + one outer perimeter). Eliminates seam cusps where multiple
+      // patches contact. Matches the in-game render.
       const visibleIce = [];
       for(const o of level.obstacles){
         if(o.kind !== 'ice') continue;
@@ -464,43 +487,90 @@
         const variant = o.variant || ICES[Math.abs(Math.floor(o.y * 0.7)) % 3];
         visibleIce.push({ sx, sy, variant });
       }
-      if(visibleIce.length >= 2){
+      if(visibleIce.length >= 1){
         const TOUCH_DIST = 80 * viewScale;
+        const BLOB_R = 38 * viewScale;
+        const INNER_R = 32 * viewScale;
         const w = 32 * 3 * viewScale;
         const h = 32 * 3 * viewScale;
-        for(let i = 0; i < visibleIce.length; i++){
-          for(let j = i + 1; j < visibleIce.length; j++){
-            const a = visibleIce[i], b = visibleIce[j];
-            const dx = b.sx - a.sx, dy = b.sy - a.sy;
-            const dist = Math.hypot(dx, dy);
-            if(dist >= TOUCH_DIST || dist < 0.1) continue;
-            const mx = (a.sx + b.sx) / 2;
-            const my = (a.sy + b.sy) / 2;
-            const imgA = assets[a.variant];
+
+        // Connected components via union-find
+        const n = visibleIce.length;
+        const parent = new Array(n);
+        for(let i = 0; i < n; i++) parent[i] = i;
+        function find(x){ while(parent[x] !== x){ parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+        function union(x, y){ const a = find(x), b = find(y); if(a !== b) parent[a] = b; }
+        for(let i = 0; i < n; i++){
+          for(let j = i + 1; j < n; j++){
+            const dx = visibleIce[j].sx - visibleIce[i].sx;
+            const dy = visibleIce[j].sy - visibleIce[i].sy;
+            if(dx*dx + dy*dy < TOUCH_DIST * TOUCH_DIST) union(i, j);
+          }
+        }
+        const clusters = new Map();
+        for(let i = 0; i < n; i++){
+          const r = find(i);
+          if(!clusters.has(r)) clusters.set(r, []);
+          clusters.get(r).push(i);
+        }
+        for(const indices of clusters.values()){
+          if(indices.length === 1){
+            // Lone patch — normal sprite render
+            const m = visibleIce[indices[0]];
+            const imgA = assets[m.variant];
             if(!imgA || !imgA.complete) continue;
-            const angle = Math.atan2(dy, dx);
-            const overlap = TOUCH_DIST - dist;
-            const rLong = Math.max(16 * viewScale, dist * 0.55);
-            const rShort = Math.min(20 * viewScale, (10 + (overlap / viewScale) * 0.16) * viewScale);
-            const passes = [
-              { sx: rLong,        sy: rShort,        alpha: 0.35 },
-              { sx: rLong * 0.78, sy: rShort * 0.78, alpha: 0.65 },
-              { sx: rLong * 0.55, sy: rShort * 0.55, alpha: 1.00 },
-            ];
-            ctx.save();
-            ctx.translate(mx, my);
-            ctx.rotate(angle);
-            for(const p of passes){
-              ctx.save();
-              ctx.beginPath();
-              ctx.ellipse(0, 0, p.sx, p.sy, 0, 0, Math.PI * 2);
-              ctx.clip();
-              ctx.globalAlpha = p.alpha;
-              ctx.rotate(-angle);
-              ctx.translate(-mx, -my);
-              ctx.drawImage(imgA, Math.round(mx - w/2), Math.round(my - h/2), w, h);
-              ctx.restore();
+            ctx.drawImage(imgA, Math.round(m.sx - w/2), Math.round(m.sy - h/2), w, h);
+            continue;
+          }
+          // Cluster — use borderless-sprite + offscreen-erase approach to
+          // match the in-game render exactly:
+          //   1) Stamp every member's BORDERLESS sprite — interior texture
+          //      tiles cleanly with no internal seam lines.
+          //   2) For each member, stamp the BORDERED sprite into an
+          //      offscreen, then erase pixels covered by any neighbor's
+          //      borderless silhouette. The leftover border pixels form
+          //      the outer perimeter only.
+          const members = indices.map(i => visibleIce[i]);
+
+          // 1) Borderless interiors.
+          for(const m of members){
+            const img = assets[m.variant + '_nb'] || assets[m.variant];
+            if(!img || !img.complete) continue;
+            ctx.drawImage(img, Math.round(m.sx - w/2), Math.round(m.sy - h/2), w, h);
+          }
+
+          // 2) Outer outline via offscreen canvas.
+          const off = ensureIceOffscreen();
+          const ox = off.ctx;
+          const dpr = window.devicePixelRatio || 1;
+          for(const m of members){
+            const borderedImg = assets[m.variant];
+            if(!borderedImg || !borderedImg.complete) continue;
+            ox.clearRect(0, 0, off.canvas.width, off.canvas.height);
+            // Editor's main ctx has a DPR transform applied; mirror it on
+            // the offscreen so we can use the same CSS-pixel coordinates.
+            ox.save();
+            ox.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ox.globalCompositeOperation = 'source-over';
+            ox.drawImage(borderedImg,
+              Math.round(m.sx - w/2), Math.round(m.sy - h/2),
+              w, h);
+            ox.globalCompositeOperation = 'destination-out';
+            for(const other of members){
+              if(other === m) continue;
+              const otherImg = assets[other.variant + '_nb'] || assets[other.variant];
+              if(!otherImg || !otherImg.complete) continue;
+              ox.drawImage(otherImg,
+                Math.round(other.sx - w/2), Math.round(other.sy - h/2),
+                w, h);
             }
+            ox.restore();
+            // Blit offscreen back as a 1:1 pixel copy (bypass main ctx
+            // transform so the offscreen pixels land where they were
+            // drawn).
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(off.canvas, 0, 0);
             ctx.restore();
           }
         }
